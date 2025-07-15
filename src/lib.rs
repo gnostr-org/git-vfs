@@ -1,3 +1,5 @@
+use hex;
+use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 
 #[derive(Debug, PartialEq)]
@@ -81,5 +83,27 @@ impl GitVfs {
         let hash = format!("{}", data.len());
         self.create_object(&hash, data)?;
         Ok(hash)
+    }
+
+    pub fn data_sha256(&mut self, data_to_hash: &[u8]) -> String {
+        let mut hasher = Sha256::new();
+        hasher.update(data_to_hash);
+        let result = hasher.finalize();
+        let hex_hash = hex::encode(result);
+        println!("Original data: {:?}", String::from_utf8_lossy(data_to_hash));
+        println!("SHA-256 hash: {}", hex_hash);
+
+        hex_hash
+        //// Example with another data slice
+        //let another_data: &[u8] = b"This is another piece of data.";
+        //let another_hash = Sha256::digest(another_data); // Using the convenience `digest` function
+        //println!("Another data: {:?}", String::from_utf8_lossy(another_data));
+        //println!("Another SHA-256 hash: {}", hex::encode(another_hash));
+
+        //// Example with an empty slice
+        //let empty_data: &[u8] = b"";
+        //let empty_hash = Sha256::digest(empty_data);
+        //println!("Empty data: {:?}", String::from_utf8_lossy(empty_data));
+        //println!("Empty SHA-256 hash: {}", hex::encode(empty_hash));
     }
 }

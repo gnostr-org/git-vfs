@@ -3,6 +3,8 @@ fn main() {
     let mut git_vfs = GitVfs::new();
 
     let blob_data = b"Hello, git virtual world!";
+
+    let blob_sha256 = git_vfs.data_sha256(blob_data);
     let blob_hash = git_vfs
         .create_blob(blob_data)
         .expect("Failed to create blob");
