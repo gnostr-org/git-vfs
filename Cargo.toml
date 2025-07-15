@@ -1,0 +1,8 @@
+[package]
+name = "git-vfs"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+async-std = { version = "1.12", features = ["async-channel", "attributes"] }
+git2 = "0.19"
