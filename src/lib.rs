@@ -95,20 +95,45 @@ impl GitVfs {
         hasher.update(data_to_hash);
         let result = hasher.finalize();
         let hex_hash = hex::encode(result);
-        println!("Original data: {:?}", String::from_utf8_lossy(data_to_hash));
-        println!("SHA-256 hash: {}", hex_hash);
 
         hex_hash
-        //// Example with another data slice
-        //let another_data: &[u8] = b"This is another piece of data.";
-        //let another_hash = Sha256::digest(another_data); // Using the convenience `digest` function
-        //println!("Another data: {:?}", String::from_utf8_lossy(another_data));
-        //println!("Another SHA-256 hash: {}", hex::encode(another_hash));
+    }
+}
 
-        //// Example with an empty slice
-        //let empty_data: &[u8] = b"";
-        //let empty_hash = Sha256::digest(empty_data);
-        //println!("Empty data: {:?}", String::from_utf8_lossy(empty_data));
-        //println!("Empty SHA-256 hash: {}", hex::encode(empty_hash));
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test] // Marks a function as a test
+    fn test_sha256_byte_slice() {
+        let data: &[u8] = b"test data";
+        let expected_hash = "916f0027a575074ce72a331777c3478d6513f786a591bd892da1a577bf2335f9";
+        let actual_hash = hex::encode(Sha256::digest(data));
+        assert_eq!(actual_hash, expected_hash);
+    }
+
+    #[test]
+    fn test_sha256_string() {
+        let data = String::from("hello world");
+        let expected_hash = "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9";
+        let actual_hash = hex::encode(Sha256::digest(data.as_bytes()));
+        assert_eq!(actual_hash, expected_hash);
+    }
+
+    #[test]
+    fn test_sha256_empty_data() {
+        let data: &[u8] = b"";
+        let expected_hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+        let actual_hash = hex::encode(Sha256::digest(data));
+        assert_eq!(actual_hash, expected_hash);
+    }
+
+    #[test]
+    fn test_sha256_multiple_updates() {
+        let mut hasher = Sha256::new();
+        hasher.update(b"part one ");
+        hasher.update(b"part two");
+        let combined_hash = hex::encode(hasher.finalize());
+        let single_hash = hex::encode(Sha256::digest(b"part one part two"));
+        assert_eq!(combined_hash, single_hash);
     }
 }
