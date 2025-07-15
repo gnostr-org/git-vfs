@@ -11,7 +11,10 @@ fn main() {
 
     let blob_content = git_vfs.get_object(&blob_hash).expect("Failed to get blob");
     println!("blob_hash: {blob_hash}");
-    println!("blob_content: \"{}\"", String::from_utf8_lossy(&blob_content));
+    println!(
+        "blob_content: \"{}\"",
+        String::from_utf8_lossy(&blob_content)
+    );
     println!("blob_sha256: {blob_sha256}");
 
     git_vfs
