@@ -16,6 +16,12 @@ pub struct GitVfs {
     head: Option<String>,              // Stores the current HEAD reference
 }
 
+impl Default for GitVfs {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GitVfs {
     pub fn new() -> Self {
         GitVfs {
