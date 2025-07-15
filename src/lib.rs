@@ -81,10 +81,7 @@ impl GitVfs {
         }
     }
 
-    //Simulates creating a blob object.
     pub fn create_blob(&mut self, data: &[u8]) -> GitVfsResult<String> {
-        //In a real git this would be a real hash function, but for simplicity
-        //we use a string representation of the data length.
         let hash = format!("{}", data.len());
         self.create_object(&hash, data)?;
         Ok(hash)

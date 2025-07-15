@@ -10,7 +10,8 @@ fn main() {
         .expect("Failed to create blob");
 
     let blob_content = git_vfs.get_object(&blob_hash).expect("Failed to get blob");
-    println!("Blob content: {}", String::from_utf8_lossy(&blob_content));
+    println!("blob_content: {}", String::from_utf8_lossy(&blob_content));
+    println!("blob_sha256: {}", blob_sha256);
 
     git_vfs
         .create_ref("refs/heads/main", &blob_hash)
@@ -20,12 +21,12 @@ fn main() {
         .expect("failed to set head");
 
     let head_ref = git_vfs.get_head().expect("failed to get head");
-    println!("HEAD: {}", head_ref);
+    println!("HEAD: {head_ref}");
 
     let main_ref_hash = git_vfs
         .get_ref("refs/heads/main")
         .expect("failed to get ref");
-    println!("Main ref hash: {}", main_ref_hash);
+    println!("Main ref hash: {main_ref_hash}");
 
     git_vfs
         .update_ref("refs/heads/main", "new_hash")
@@ -34,5 +35,5 @@ fn main() {
     let main_ref_hash = git_vfs
         .get_ref("refs/heads/main")
         .expect("failed to get ref");
-    println!("Updated Main ref hash: {}", main_ref_hash);
+    println!("Updated Main ref hash: {main_ref_hash}");
 }
