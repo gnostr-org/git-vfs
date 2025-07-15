@@ -91,9 +91,8 @@ impl GitVfs {
         let mut hasher = Sha256::new();
         hasher.update(data_to_hash);
         let result = hasher.finalize();
-        let hex_hash = hex::encode(result);
 
-        hex_hash
+        hex::encode(result)
     }
 }
 
