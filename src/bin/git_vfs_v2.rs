@@ -2,7 +2,7 @@
 use std::io;
 use futures::{AsyncReadExt, AsyncWriteExt};
 use libp2p::{
-    kad::{store::MemoryStore, GetProvidersResult, QueryId, RecordKey},
+    kad::{store::MemoryStore, QueryId, RecordKey},
     mdns,
     request_response::{self},
     swarm::{NetworkBehaviour},
@@ -157,8 +157,8 @@ mod tests {
     #[test]
     fn test_behaviour_event_from_kademlia_event() {
         let event = KademliaEvent::OutboundQueryProgressed {
-            id: QueryId::from(0),
-            result: libp2p::kad::QueryResult::GetProviders(libp2p::kad::GetProvidersOk {
+            id: QueryId::from(0u64),
+            result: libp2p::kad::QueryResult::GetProviders(GetProvidersOk {
                 key: RecordKey::new(b"test"),
                 providers: Vec::new(),
             }),
