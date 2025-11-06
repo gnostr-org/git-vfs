@@ -763,7 +763,7 @@ mock_commit_message:Content from original client";
         print_vfs_state(&vfs_server_new, "New Server");
 
         // --- Verify new server state matches original client state ---
-        assert_eq!(vfs_server_new.get_object(&blob_hash_client_orig).unwrap(), GitObject::Commit(Commit { author: "OriginalClient".to_string(), message: "Content from original client".to_string() }));
+        assert_eq!(vfs_server_new.get_object(&blob_hash_client_orig).unwrap(), GitObject::Blob(b"Content from original client".to_vec()));
         assert_eq!(vfs_server_new.get_ref(ref_name_client_orig).unwrap(), client_orig_ref_hash);
         assert_eq!(vfs_server_new.get_head().unwrap(), client_orig_head_ref);
         println!("--- {} Verification successful: New Server state matches Original Client state ---", "");
