@@ -1,6 +1,6 @@
 
 // --- IMPORTS ---
-use git_vfs::GitVfs;
+use git_vfs::{GitVfs, GitObject};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;

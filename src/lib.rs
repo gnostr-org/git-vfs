@@ -34,6 +34,17 @@ pub enum GitObject {
     Commit(Commit),
     // Add other Git object types like Tree if needed
 }
+
+impl GitObject {
+    pub fn to_vec(&self) -> Vec<u8> {
+        match self {
+            GitObject::Blob(data) => data.clone(),
+            GitObject::Commit(commit) => {
+                format!("mock_commit_author:{}\nmock_commit_message:{}", commit.author, commit.message).into_bytes()
+            }
+        }
+    }
+}
 // --- End of new definitions ---
 
 pub struct GitVfs {

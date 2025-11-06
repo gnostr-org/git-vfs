@@ -1,7 +1,7 @@
 
 
 // --- IMPORTS ---
-use git_vfs::GitVfs;
+use git_vfs::{GitVfs, GitObject};
 use std::time::Duration;
 use tokio::time::sleep;
 
