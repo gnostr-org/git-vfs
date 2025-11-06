@@ -1,6 +1,6 @@
 
 // --- IMPORTS ---
-use git_vfs::{GitVfs, GitObject};
+use git_vfs::GitVfs;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -207,8 +207,8 @@ async fn main() {
         println!("Node 2 synced from Node 1.");
 
         // Node 1 fetches from Node 2
-        let n2_obj_data = node2_vfs.get_object(&node2_hash).unwrap();
-        node1_vfs.create_object(&node2_hash, &n2_obj_data.to_vec().as_slice()).unwrap();
+        let n2_obj_data = node2_vfs.get_object(&node2_new_commit_hash).unwrap();
+        node1_vfs.create_object(&node2_new_commit_hash, &n2_obj_data.to_vec().as_slice()).unwrap();
         println!("Node 1 synced from Node 2 (object only).");
 
 
