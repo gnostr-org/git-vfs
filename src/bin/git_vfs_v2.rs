@@ -186,7 +186,7 @@ mod tests {
         let event: request_response::Event<String, Vec<u8>> = request_response::Event::Message {
             peer: PeerId::random(),
             message: request_response::Message::Request {
-                request_id: request_response::InboundRequestId::from(0),
+                request_id: request_response::InboundRequestId::new(),
                 request: "test_hash".to_string(),
                 channel: request_response::ResponseChannel::new(Default::default()),
             },
