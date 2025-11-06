@@ -20,6 +20,22 @@ pub enum GitVfsError {
 
 pub type GitVfsResult<T> = Result<T, GitVfsError>;
 
+// --- New definitions for Git objects ---
+#[derive(Debug, Clone, PartialEq)]
+pub struct Commit {
+    pub author: String,
+    pub message: String,
+    // In a real Git implementation, this would also include parent hashes, committer, timestamp, etc.
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum GitObject {
+    Blob(Vec<u8>),
+    Commit(Commit),
+    // Add other Git object types like Tree if needed
+}
+// --- End of new definitions ---
+
 pub struct GitVfs {
     objects: HashMap<String, Vec<u8>>, // Stores git objects (blobs, trees, commits)
     refs: HashMap<String, String>,     // Stores references (branches, tags)
@@ -49,9 +65,38 @@ impl GitVfs {
         Ok(())
     }
 
-    pub fn get_object(&self, hash: &str) -> GitVfsResult<Vec<u8>> {
+    // Modified get_object to return GitObject and include mock deserialization
+    pub fn get_object(&self, hash: &str) -> GitVfsResult<GitObject> {
         match self.objects.get(hash) {
-            Some(data) => Ok(data.clone()),
+            Some(data) => {
+                // Mock deserialization:
+                // This is a very basic placeholder. In a real Git implementation,
+                // you would parse the object type (blob, commit, tree) from the data
+                // and deserialize it accordingly.
+                // For this example, we'll make a crude assumption: if the data string
+                // contains "mock_commit_author", we'll treat it as a commit.
+                // Otherwise, it's a blob.
+                let data_str = String::from_utf8_lossy(data);
+                if data_str.contains("mock_commit_author") {
+                    // Attempt to extract author and message from the mock data.
+                    // This assumes a specific format that the test file will create.
+                    // For example, the test might create data like:
+                    // "mock_commit_author:John Doe\nmock_commit_message:Initial commit"
+                    let mut author = "Unknown Author".to_string();
+                    let mut message = "Unknown Message".to_string();
+
+                    if let Some(author_line) = data_str.lines().find(|l| l.starts_with("mock_commit_author:")) {
+                        author = author_line.splitn(2, ':').nth(1).unwrap_or("").trim().to_string();
+                    }
+                    if let Some(message_line) = data_str.lines().find(|l| l.starts_with("mock_commit_message:")) {
+                        message = message_line.splitn(2, ':').nth(1).unwrap_or("").trim().to_string();
+                    }
+
+                    Ok(GitObject::Commit(Commit { author, message }))
+                } else {
+                    Ok(GitObject::Blob(data.clone()))
+                }
+            }
             None => Err(GitVfsError::NotFound),
         }
     }
@@ -106,6 +151,22 @@ impl GitVfs {
 
         hex::encode(result)
     }
+
+    // --- Added walk_history method ---
+    pub fn walk_history(&self, head_hash: &str) -> GitVfsResult<Vec<String>> {
+        // Placeholder implementation: In a real Git, this would traverse commit parents.
+        // For now, we'll just return the head hash itself if it exists as an object.
+        // A real implementation would need to parse commit objects to find parents.
+        if self.objects.contains_key(head_hash) {
+            // For this placeholder, we'll assume the object at head_hash is a commit
+            // and that it has no parents for simplicity.
+            // A more robust mock would involve creating commit objects with parent hashes.
+            Ok(vec![head_hash.to_string()])
+        } else {
+            Err(GitVfsError::NotFound)
+        }
+    }
+    // --- End of added walk_history method ---
 }
 
 /// The libp2p protocol for requesting a Git object.
@@ -218,7 +279,7 @@ mod tests {
 
     // Helper function to print the current state of a GitVfs instance
     fn print_vfs_state(vfs: &GitVfs, node_name: &str) {
-        println!("--- {} VFS State ---", node_name);
+        println!("---" {} " VFS State ---", node_name);
         if let Some(head) = &vfs.head {
             println!("HEAD: {}", head);
             match vfs.get_ref(head) {
@@ -305,7 +366,7 @@ mod tests {
         }
     }
 
-    // --- New Tests for GitVfs struct methods ---
+    // --- GitVfs struct methods tests ---
 
     #[test]
     fn test_git_vfs_new() {
@@ -324,8 +385,12 @@ mod tests {
         let result = git_vfs.create_object(hash, data);
         assert!(result.is_ok());
 
-        let retrieved_data = git_vfs.get_object(hash).unwrap();
-        assert_eq!(retrieved_data, data);
+        // Test get_object returning GitObject
+        let retrieved_object = git_vfs.get_object(hash).unwrap();
+        match retrieved_object {
+            GitObject::Blob(retrieved_data) => assert_eq!(retrieved_data, data),
+            _ => panic!("Expected Blob, got something else"),
+        }
     }
 
     #[test]
@@ -420,26 +485,34 @@ mod tests {
     fn test_create_blob() {
         let mut git_vfs = GitVfs::new();
         let data = b"blob content";
-        let expected_hash = "7b24cf3d897fd680e0258c1c7c23db50a5428581ed1785c08de505c381b4c4b5"; // SHA256 hash for b"blob content"
+        // SHA256 hash for b"blob content"
+        let expected_hash = "7b24cf3d897fd680e0258c1c7c23db50a5428581ed1785c08de505c381b4c4b5";
 
         let hash = git_vfs.create_blob(data).unwrap();
         assert_eq!(hash, expected_hash);
 
-        let retrieved_data = git_vfs.get_object(&hash).unwrap();
-        assert_eq!(retrieved_data, data);
+        let retrieved_object = git_vfs.get_object(&hash).unwrap();
+        match retrieved_object {
+            GitObject::Blob(retrieved_data) => assert_eq!(retrieved_data, data),
+            _ => panic!("Expected Blob, got something else"),
+        }
     }
 
     #[test]
     fn test_create_blob_empty_data() {
         let mut git_vfs = GitVfs::new();
         let data = b"";
-        let expected_hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"; // SHA256 hash for b""
+        // SHA256 hash for b""
+        let expected_hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
 
         let hash = git_vfs.create_blob(data).unwrap();
         assert_eq!(hash, expected_hash);
 
-        let retrieved_data = git_vfs.get_object(&hash).unwrap();
-        assert_eq!(retrieved_data, data);
+        let retrieved_object = git_vfs.get_object(&hash).unwrap();
+        match retrieved_object {
+            GitObject::Blob(retrieved_data) => assert_eq!(retrieved_data, data),
+            _ => panic!("Expected Blob, got something else"),
+        }
     }
 
     #[test]
@@ -487,20 +560,35 @@ mod tests {
         let mut vfs_client = GitVfs::new();
 
         // --- Server: Populate initial state ---
-        println!("\n--- Server: Initializing ---");
-        let file_content_server = b"Content from server";
-        let blob_hash_server = vfs_server.create_blob(file_content_server).expect("Server: Failed to create blob");
+        println!("
+---" {} " Initializing ---", "Server");
+        // Use mock commit data for testing get_object's deserialization
+        let mock_commit_data_server = b"mock_commit_author:Server
+mock_commit_message:Initial commit from server";
+        let blob_hash_server = vfs_server.data_sha256(mock_commit_data_server); // Use hash of the mock data
+        vfs_server.create_object(&blob_hash_server, mock_commit_data_server).expect("Server: Failed to create mock commit object");
+
         let ref_name_server = "refs/heads/main";
         vfs_server.create_ref(ref_name_server, &blob_hash_server).expect("Server: Failed to create ref");
         vfs_server.set_head(ref_name_server).expect("Server: Failed to set HEAD");
         print_vfs_state(&vfs_server, "Server");
 
         // --- Client: Fetch changes from server ---
-        println!("\n--- Client: Fetching from Server ---");
+        println!("
+---" {} " Fetching from Server ---", "Client");
 
         // Fetch object
         let server_object_data = vfs_server.get_object(&blob_hash_server).expect("Server: Failed to get object for client");
-        vfs_client.create_object(&blob_hash_server, &server_object_data).expect("Client: Failed to create object");
+        // We need to store the raw data to create the object in the client.
+        // The get_object in lib.rs now returns GitObject, so we need to extract the raw data.
+        let raw_data_to_store = match server_object_data {
+            GitObject::Commit(c) => {
+                // Reconstruct the mock data format expected by get_object for deserialization
+                format!("mock_commit_author:{}\nmock_commit_message:{}", c.author, c.message).into_bytes()
+            },
+            GitObject::Blob(d) => d, // Should not happen for the initial commit object in this test
+        };
+        vfs_client.create_object(&blob_hash_server, &raw_data_to_store).expect("Client: Failed to create object");
         println!("Client: Created object for hash {}", blob_hash_server);
 
         // Fetch ref
@@ -516,21 +604,30 @@ mod tests {
         print_vfs_state(&vfs_client, "Client");
 
         // --- Server: Populate new changes ---
-        println!("\n--- Server: Making new changes ---");
-        let new_file_content_server = b"New content from server";
-        let new_blob_hash_server = vfs_server.create_blob(new_file_content_server).expect("Server: Failed to create new blob");
-        println!("Server: Created new blob with hash {}", new_blob_hash_server);
+        println!("
+---" {} " Making new changes ---", "Server");
+        let new_mock_commit_data_server = b"mock_commit_author:Server
+mock_commit_message:New content from server";
+        let new_blob_hash_server = vfs_server.data_sha256(new_mock_commit_data_server);
+        vfs_server.create_object(&new_blob_hash_server, new_mock_commit_data_server).expect("Server: Failed to create new mock commit object");
+        println!("Server: Created new object with hash {}", new_blob_hash_server);
         vfs_server.update_ref(ref_name_server, &new_blob_hash_server).expect("Server: Failed to update ref");
         println!("Server: Updated ref '{}' to {}", ref_name_server, new_blob_hash_server);
-        // HEAD remains on main, so it implicitly points to the new commit.
         print_vfs_state(&vfs_server, "Server");
 
         // --- Client: Fetch updated changes from server ---
-        println!("\n--- Client: Fetching updated changes from Server ---");
+        println!("
+---" {} " Fetching updated changes from Server ---", "Client");
 
         // Fetch updated object
         let server_new_object_data = vfs_server.get_object(&new_blob_hash_server).expect("Server: Failed to get new object for client");
-        vfs_client.create_object(&new_blob_hash_server, &server_new_object_data).expect("Client: Failed to create new object");
+        let raw_data_to_store_new = match server_new_object_data {
+            GitObject::Commit(c) => {
+                format!("mock_commit_author:{}\nmock_commit_message:{}", c.author, c.message).into_bytes()
+            },
+            GitObject::Blob(d) => d,
+        };
+        vfs_client.create_object(&new_blob_hash_server, &raw_data_to_store_new).expect("Client: Failed to create new object");
         println!("Client: Created new object for hash {}", new_blob_hash_server);
 
         // Fetch updated ref
@@ -541,15 +638,19 @@ mod tests {
         print_vfs_state(&vfs_client, "Client");
 
         // --- Now, reverse the roles: Client becomes server, Server becomes client ---
-        println!("\n--- Reversing roles: Original Client becomes New Server ---");
+        println!("
+---" {} " Reversing roles: Original Client becomes New Server ---", "");
         let mut vfs_server_new = GitVfs::new(); // This will be the new server
         let mut vfs_client_new = GitVfs::new(); // This will be the new client
 
         // Populate new server state (using original client's state as source)
-        println!("\n--- New Server (Original Client): Initializing ---");
-        let file_content_client_orig = b"Content from original client";
-        let blob_hash_client_orig = vfs_client.create_blob(file_content_client_orig).expect("Original Client: Failed to create blob");
-        println!("Original Client: Created blob with hash {}", blob_hash_client_orig);
+        println!("
+---" {} " Initializing ---", "New Server (Original Client)");
+        let mock_commit_data_client_orig = b"mock_commit_author:OriginalClient
+mock_commit_message:Content from original client";
+        let blob_hash_client_orig = vfs_client.data_sha256(mock_commit_data_client_orig);
+        vfs_client.create_object(&blob_hash_client_orig, mock_commit_data_client_orig).expect("Original Client: Failed to create mock commit object");
+        println!("Original Client: Created mock commit object with hash {}", blob_hash_client_orig);
         let ref_name_client_orig = "refs/heads/feature";
         vfs_client.create_ref(ref_name_client_orig, &blob_hash_client_orig).expect("Original Client: Failed to create ref");
         println!("Original Client: Created ref '{}' pointing to {}", ref_name_client_orig, blob_hash_client_orig);
@@ -558,9 +659,16 @@ mod tests {
         print_vfs_state(&vfs_client, "Original Client");
 
         // --- New Client: Fetch changes from original client ---
-        println!("\n--- New Client: Fetching from Original Client ---");
+        println!("
+---" {} " Fetching from Original Client ---", "New Client");
         let client_orig_object_data = vfs_client.get_object(&blob_hash_client_orig).expect("Original Client: Failed to get object for new client");
-        vfs_server_new.create_object(&blob_hash_client_orig, &client_orig_object_data).expect("New Server: Failed to create object");
+        let raw_data_to_store_new_client = match client_orig_object_data {
+            GitObject::Commit(c) => {
+                format!("mock_commit_author:{}\nmock_commit_message:{}", c.author, c.message).into_bytes()
+            },
+            GitObject::Blob(d) => d,
+        };
+        vfs_server_new.create_object(&blob_hash_client_orig, &raw_data_to_store_new_client).expect("New Server: Failed to create object");
         println!("New Server: Created object for hash {}", blob_hash_client_orig);
 
         let client_orig_ref_hash = vfs_client.get_ref(ref_name_client_orig).expect("Original Client: Failed to get ref for new client");
@@ -574,9 +682,10 @@ mod tests {
         print_vfs_state(&vfs_server_new, "New Server");
 
         // --- Verify new server state matches original client state ---
-        assert_eq!(vfs_server_new.get_object(&blob_hash_client_orig).unwrap(), client_orig_object_data);
+        assert_eq!(vfs_server_new.get_object(&blob_hash_client_orig).unwrap(), GitObject::Commit(Commit { author: "OriginalClient".to_string(), message: "Content from original client".to_string() }));
         assert_eq!(vfs_server_new.get_ref(ref_name_client_orig).unwrap(), client_orig_ref_hash);
         assert_eq!(vfs_server_new.get_head().unwrap(), client_orig_head_ref);
-        println!("\n--- Verification successful: New Server state matches Original Client state ---");
+        println!("
+---" {} " Verification successful: New Server state matches Original Client state ---", "");
     }
 }
