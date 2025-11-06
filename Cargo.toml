@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 async-std = { version = "1.12", features = ["async-channel", "attributes"] }
+clap = { version = "4.3.19", features = ["derive", "env", "cargo"] }
 hex = { version = "0.4.3", features = ["serde"] }
 sha2 = { version = "0.10.9", features = ["oid"] }
 

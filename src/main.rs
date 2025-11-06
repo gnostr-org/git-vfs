@@ -1,45 +1,69 @@
-use git_vfs::*;
+mod cli;
+
+use clap::Parser;
+use git_vfs::{GitVfs, GitObjectKind, Commit};
+use std::collections::HashMap;
+
 fn main() {
-    let mut git_vfs = GitVfs::new();
+    let args = cli::Args::parse();
+    let mut vfs = GitVfs::new();
 
-    let blob_data = b"Hello, git virtual world!";
+    match args.command {
+        cli::Commands::Init => {
+            // In a real Git VFS, 'init' would set up the repository structure.
+            // For this in-memory version, creating a new GitVfs instance is sufficient.
+            println!("Initialized empty Git VFS repository.");
+        }
+        cli::Commands::Commit { message } => {
+            // Create a dummy blob and tree for the commit
+            let dummy_blob_data = b"Initial content for commit";
+            let dummy_blob_hash = vfs.create_blob(dummy_blob_data).expect("Failed to create dummy blob");
 
-    let blob_sha256 = git_vfs.data_sha256(blob_data);
-    let blob_hash = git_vfs
-        .create_blob(blob_data)
-        .expect("Failed to create blob");
+            let mut dummy_tree_entries = HashMap::new();
+            dummy_tree_entries.insert("dummy_file.txt".to_string(), (dummy_blob_hash.clone(), GitObjectKind::Blob));
+            let dummy_tree_hash = vfs.create_tree(dummy_tree_entries).expect("Failed to create dummy tree");
 
-    let blob_content = git_vfs.get_object(&blob_hash).expect("Failed to get blob");
-    println!("blob_hash: {blob_hash}");
-    let blob_content_bytes = match blob_content {
-        GitObject::Blob(data) => data,
-        GitObject::Commit(_) => panic!("Expected a blob, but got a commit."),
-        GitObject::Tree(_) => panic!("Expected a blob, but got a tree."),
-    };
-    println!("blob_content: \"{}\"", String::from_utf8_lossy(&blob_content_bytes));
-    println!("blob_sha256: {blob_sha256}");
+            // Create the commit
+            let commit_hash = vfs.create_commit(
+                "CLI User", // Author
+                &message,
+                &dummy_tree_hash,
+                vec![], // No parents for the first commit
+            ).expect("Failed to create commit");
 
-    git_vfs
-        .create_ref("refs/heads/main", &blob_hash)
-        .expect("Failed to create ref");
-    git_vfs
-        .set_head("refs/heads/main")
-        .expect("failed to set head");
+            // Set the ref and HEAD to the new commit
+            vfs.create_ref("refs/heads/main", &commit_hash).expect("Failed to create ref");
+            vfs.set_head("refs/heads/main").expect("Failed to set HEAD");
 
-    let head_ref = git_vfs.get_head().expect("failed to get head");
-    println!("HEAD: {head_ref}");
+            println!("Created commit: {} with message: '{}'", commit_hash, message);
+        }
+        cli::Commands::Log => {
+            let head_ref = vfs.get_head().expect("No HEAD set. Initialize a repository or make a commit first.");
+            let head_hash = vfs.get_ref(&head_ref).expect("HEAD does not point to a valid ref.");
 
-    let main_ref_hash = git_vfs
-        .get_ref("refs/heads/main")
-        .expect("failed to get ref");
-    println!("Main ref hash: {main_ref_hash}");
-
-    git_vfs
-        .update_ref("refs/heads/main", "new_hash")
-        .expect("failed to update ref");
-
-    let main_ref_hash = git_vfs
-        .get_ref("refs/heads/main")
-        .expect("failed to get ref");
-    println!("Updated Main ref hash: {main_ref_hash}");
+            println!("Commit history for {}:", head_ref);
+            match vfs.walk_history(&head_hash) {
+                Ok(history) => {
+                    if history.is_empty() {
+                        println!("  (No commits found)");
+                    } else {
+                        for commit_hash in history {
+                            match vfs.get_object(&commit_hash) {
+                                Ok(git_vfs::GitObject::Commit(commit)) => {
+                                    println!("  commit: {}", commit_hash);
+                                    println!("  Author: {}", commit.author);
+                                    println!("  Message: {}", commit.message);
+                                    println!("  Parents: {:?}", commit.parent_hashes);
+                                    println!(); // Add a blank line for readability
+                                }
+                                Ok(_) => println!("  commit: {} (unexpected object type)", commit_hash), // Should not happen if walk_history is correct
+                                Err(e) => println!("  commit: {} (error retrieving: {:?})", commit_hash, e),
+                            }
+                        }
+                    }
+                }
+                Err(e) => println!("Error walking history: {:?}", e),
+            }
+        }
+    }
 }
