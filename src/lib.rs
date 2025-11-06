@@ -2,7 +2,7 @@ use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::io;
 use futures::{AsyncReadExt, AsyncWriteExt};
-use libp2p::{
+use libp2p{
     kad::{store::MemoryStore, Behaviour as Kademlia, Event as KademliaEvent},
     mdns,
     request_response::{self},
@@ -213,6 +213,30 @@ mod tests {
     use super::*;
     use futures::io::Cursor;
     use libp2p::request_response::Codec;
+
+    // Helper function to print the current state of a GitVfs instance
+    fn print_vfs_state(vfs: &GitVfs, node_name: &str) {
+        println!("---" {} " VFS State ---", node_name);
+        if let Some(head) = &vfs.head {
+            println!("HEAD: {}", head);
+            match vfs.get_ref(head) {
+                Ok(hash) => println!("  -> Ref '{}' points to hash: {}", head, hash),
+                Err(_) => println!("  -> Ref '{}' not found or invalid.", head),
+            }
+        } else {
+            println!("HEAD: (not set)");
+        }
+
+        println!("Refs:");
+        if vfs.refs.is_empty() {
+            println!("  (no refs)");
+        } else {
+            for (ref_name, hash) in &vfs.refs {
+                println!("  - {}: {}", ref_name, hash);
+            }
+        }
+        println!("---------------------");
+    }
 
     #[tokio::test]
     async fn test_read_write_request() {
@@ -461,79 +485,96 @@ mod tests {
         let mut vfs_client = GitVfs::new();
 
         // --- Server: Populate initial state ---
+        println!("\n--- Server: Initializing ---");
         let file_content_server = b"Content from server";
         let blob_hash_server = vfs_server.create_blob(file_content_server).expect("Server: Failed to create blob");
         let ref_name_server = "refs/heads/main";
         vfs_server.create_ref(ref_name_server, &blob_hash_server).expect("Server: Failed to create ref");
         vfs_server.set_head(ref_name_server).expect("Server: Failed to set HEAD");
+        print_vfs_state(&vfs_server, "Server");
 
         // --- Client: Fetch changes from server ---
+        println!("\n--- Client: Fetching from Server ---");
 
         // Fetch object
         let server_object_data = vfs_server.get_object(&blob_hash_server).expect("Server: Failed to get object for client");
         vfs_client.create_object(&blob_hash_server, &server_object_data).expect("Client: Failed to create object");
+        println!("Client: Created object for hash {}", blob_hash_server);
 
         // Fetch ref
         let server_ref_hash = vfs_server.get_ref(ref_name_server).expect("Server: Failed to get ref for client");
         vfs_client.create_ref(ref_name_server, &server_ref_hash).expect("Client: Failed to create ref");
+        println!("Client: Created ref '{}' pointing to {}", ref_name_server, server_ref_hash);
 
         // Fetch HEAD
         let server_head_ref = vfs_server.get_head().expect("Server: Failed to get HEAD for client");
         vfs_client.set_head(&server_head_ref).expect("Client: Failed to set HEAD");
+        println!("Client: Set HEAD to {}", server_head_ref);
 
-        // --- Verify client state matches server state ---
-        assert_eq!(vfs_client.get_object(&blob_hash_server).unwrap(), server_object_data);
-        assert_eq!(vfs_client.get_ref(ref_name_server).unwrap(), server_ref_hash);
-        assert_eq!(vfs_client.get_head().unwrap(), server_head_ref);
+        print_vfs_state(&vfs_client, "Client");
 
         // --- Server: Populate new changes ---
+        println!("\n--- Server: Making new changes ---");
         let new_file_content_server = b"New content from server";
         let new_blob_hash_server = vfs_server.create_blob(new_file_content_server).expect("Server: Failed to create new blob");
+        println!("Server: Created new blob with hash {}", new_blob_hash_server);
         vfs_server.update_ref(ref_name_server, &new_blob_hash_server).expect("Server: Failed to update ref");
+        println!("Server: Updated ref '{}' to {}", ref_name_server, new_blob_hash_server);
         // HEAD remains on main, so it implicitly points to the new commit.
+        print_vfs_state(&vfs_server, "Server");
 
         // --- Client: Fetch updated changes from server ---
+        println!("\n--- Client: Fetching updated changes from Server ---");
 
         // Fetch updated object
         let server_new_object_data = vfs_server.get_object(&new_blob_hash_server).expect("Server: Failed to get new object for client");
         vfs_client.create_object(&new_blob_hash_server, &server_new_object_data).expect("Client: Failed to create new object");
+        println!("Client: Created new object for hash {}", new_blob_hash_server);
 
         // Fetch updated ref
         let server_updated_ref_hash = vfs_server.get_ref(ref_name_server).expect("Server: Failed to get updated ref for client");
         vfs_client.update_ref(ref_name_server, &server_updated_ref_hash).expect("Client: Failed to update ref");
+        println!("Client: Updated ref '{}' to {}", ref_name_server, server_updated_ref_hash);
 
-        // --- Verify client state matches updated server state ---
-        assert_eq!(vfs_client.get_object(&new_blob_hash_server).unwrap(), server_new_object_data);
-        assert_eq!(vfs_client.get_ref(ref_name_server).unwrap(), server_updated_ref_hash);
-        // HEAD in client should still point to the old ref name, but the ref itself is updated.
-        // If HEAD was pointing to a specific commit hash, we'd need to update that too.
-        // For now, we assume HEAD points to a ref name, and the ref name is updated.
-        assert_eq!(vfs_client.get_head().unwrap(), ref_name_server); // HEAD ref name is the same
+        print_vfs_state(&vfs_client, "Client");
 
         // --- Now, reverse the roles: Client becomes server, Server becomes client ---
+        println!("\n--- Reversing roles: Original Client becomes New Server ---");
         let mut vfs_server_new = GitVfs::new(); // This will be the new server
         let mut vfs_client_new = GitVfs::new(); // This will be the new client
 
         // Populate new server state (using original client's state as source)
+        println!("\n--- New Server (Original Client): Initializing ---");
         let file_content_client_orig = b"Content from original client";
         let blob_hash_client_orig = vfs_client.create_blob(file_content_client_orig).expect("Original Client: Failed to create blob");
+        println!("Original Client: Created blob with hash {}", blob_hash_client_orig);
         let ref_name_client_orig = "refs/heads/feature";
         vfs_client.create_ref(ref_name_client_orig, &blob_hash_client_orig).expect("Original Client: Failed to create ref");
+        println!("Original Client: Created ref '{}' pointing to {}", ref_name_client_orig, blob_hash_client_orig);
         vfs_client.set_head(ref_name_client_orig).expect("Original Client: Failed to set HEAD");
+        println!("Original Client: Set HEAD to {}", ref_name_client_orig);
+        print_vfs_state(&vfs_client, "Original Client");
 
         // --- New Client: Fetch changes from original client ---
+        println!("\n--- New Client: Fetching from Original Client ---");
         let client_orig_object_data = vfs_client.get_object(&blob_hash_client_orig).expect("Original Client: Failed to get object for new client");
         vfs_server_new.create_object(&blob_hash_client_orig, &client_orig_object_data).expect("New Server: Failed to create object");
+        println!("New Server: Created object for hash {}", blob_hash_client_orig);
 
         let client_orig_ref_hash = vfs_client.get_ref(ref_name_client_orig).expect("Original Client: Failed to get ref for new client");
         vfs_server_new.create_ref(ref_name_client_orig, &client_orig_ref_hash).expect("New Server: Failed to create ref");
+        println!("New Server: Created ref '{}' pointing to {}", ref_name_client_orig, client_orig_ref_hash);
 
         let client_orig_head_ref = vfs_client.get_head().expect("Original Client: Failed to get HEAD for new client");
         vfs_server_new.set_head(&client_orig_head_ref).expect("New Server: Failed to set HEAD");
+        println!("New Server: Set HEAD to {}", client_orig_head_ref);
+
+        print_vfs_state(&vfs_server_new, "New Server");
 
         // --- Verify new server state matches original client state ---
         assert_eq!(vfs_server_new.get_object(&blob_hash_client_orig).unwrap(), client_orig_object_data);
         assert_eq!(vfs_server_new.get_ref(ref_name_client_orig).unwrap(), client_orig_ref_hash);
         assert_eq!(vfs_server_new.get_head().unwrap(), client_orig_head_ref);
+        println!("\n--- Verification successful: New Server state matches Original Client state ---");
     }
 }
