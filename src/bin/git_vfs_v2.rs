@@ -69,7 +69,7 @@ impl libp2p::request_response::Codec for GitVfsProtocol {
         })
     }
 
-    fn write_request<TWs: AsyncWriteExt + Unpin + Send>(
+    async fn write_request<TWs: AsyncWriteExt + Unpin + Send>(
         &mut self,
         _protocol: &Self::Protocol,
         item: Self::Request,
