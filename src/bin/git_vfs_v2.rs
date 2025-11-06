@@ -202,7 +202,7 @@ mod tests {
     fn test_behaviour_event_from_identify_event() {
         let event = libp2p::identify::Event::Received {
             peer_id: PeerId::random(),
-            info: libp2p::identify::Info::default(),
+            info: libp2p::identify::Info::new(),
         };
         let behaviour_event: GitVfsBehaviourEvent = event.into();
         match behaviour_event {
