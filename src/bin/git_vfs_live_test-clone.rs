@@ -94,7 +94,11 @@ async fn main() {
         git_vfs::GitObject::Tree(t) => t,
         _ => panic!("Expected tree object"),
     };
-    node2_vfs.create_tree(node1_tree.clone()).unwrap();
+    match node2_vfs.create_tree(node1_tree.clone()) {
+        Ok(_) => {},
+        Err(git_vfs::GitVfsError::AlreadyExists) => {},
+        Err(e) => panic!("Failed to create tree: {:?}", e),
+    };
 
     // Fetch and create blob objects (assuming only one for simplicity)
     for (_, (blob_hash, _)) in node1_tree.iter() {
@@ -102,7 +106,11 @@ async fn main() {
             git_vfs::GitObject::Blob(b) => b,
             _ => panic!("Expected blob object"),
         };
-        node2_vfs.create_blob(&blob_data).unwrap();
+        match node2_vfs.create_blob(&blob_data) {
+            Ok(_) => {},
+            Err(git_vfs::GitVfsError::AlreadyExists) => {},
+            Err(e) => panic!("Failed to create blob: {:?}", e),
+        };
     }
 
     // Create the commit object in Node 2
@@ -320,7 +328,11 @@ async fn main() {
             git_vfs::GitObject::Tree(t) => t,
             _ => panic!("Expected tree object"),
         };
-        node2_vfs.create_tree(node1_tree.clone()).unwrap();
+        match node2_vfs.create_tree(node1_tree.clone()) {
+        Ok(_) => {},
+        Err(git_vfs::GitVfsError::AlreadyExists) => {},
+        Err(e) => panic!("Failed to create tree: {:?}", e),
+    };
 
         // Fetch and create blob objects
         for (_, (blob_hash, _)) in node1_tree.iter() {
@@ -354,7 +366,11 @@ async fn main() {
             git_vfs::GitObject::Tree(t) => t,
             _ => panic!("Expected tree object"),
         };
-        node1_vfs.create_tree(node2_tree.clone()).unwrap();
+        match node1_vfs.create_tree(node2_tree.clone()) {
+            Ok(_) => {},
+            Err(git_vfs::GitVfsError::AlreadyExists) => {},
+            Err(e) => panic!("Failed to create tree: {:?}", e),
+        };
 
         // Fetch and create blob objects
         for (_, (blob_hash, _)) in node2_tree.iter() {
@@ -362,7 +378,11 @@ async fn main() {
                 git_vfs::GitObject::Blob(b) => b,
                 _ => panic!("Expected blob object"),
             };
-            node1_vfs.create_blob(&blob_data).unwrap();
+            match node1_vfs.create_blob(&blob_data) {
+                Ok(_) => {},
+                Err(git_vfs::GitVfsError::AlreadyExists) => {},
+                Err(e) => panic!("Failed to create blob: {:?}", e),
+            };
         }
 
         // Create the commit object in Node 1
