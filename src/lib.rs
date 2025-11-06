@@ -741,7 +741,7 @@ mock_commit_message:New content from server";
         // --- Now, reverse the roles: Client becomes server, Server becomes client ---
         println!("--- {} Reversing roles: Original Client becomes New Server ---", "");
         let mut vfs_server_new = GitVfs::new(); // This will be the new server
-        let vfs_client_new = GitVfs::new(); // This will be the new client
+        let _vfs_client_new = GitVfs::new(); // This will be the new client
 
         // Populate new server state (using original client's state as source)
         println!("--- {} Initializing ---", "New Server (Original Client)");
