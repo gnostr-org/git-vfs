@@ -100,7 +100,7 @@ async fn main() {
     let feature_object_data = node2_vfs.get_object(&node2_feature_hash).expect("Node 2: Failed to get feature object");
 
     // Node 1 creates the object and ref for the feature branch
-    node1_vfs.create_object(&node2_feature_hash, &feature_object_data).expect("Node 1: Failed to create feature object");
+    node1_vfs.create_object(&node2_feature_hash, &feature_object_data.to_vec().as_slice()).expect("Node 1: Failed to create feature object");
     node1_vfs.create_ref(feature_ref, &node2_feature_hash).expect("Node 1: Failed to create feature ref");
 
     println!("Node 1: Fetched feature branch from Node 2.");

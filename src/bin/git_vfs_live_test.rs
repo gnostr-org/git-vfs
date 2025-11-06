@@ -109,7 +109,7 @@ async fn main() {
         // --- Simulate Syncing ---
         // Node 2 fetches from Node 1
         let n1_obj_data = node1_vfs.get_object(&node1_hash).unwrap();
-        node2_vfs.create_object(&node1_hash, &n1_obj_data).unwrap();
+        node2_vfs.create_object(&node1_hash, &n1_obj_data.to_vec().as_slice()).unwrap();
         // In a real scenario, nodes would decide how to merge. Here we'll just have Node 2
         // arbitrarily decide to update its main ref to Node 1's version for simplicity.
         node2_vfs.update_ref(main_ref, &node1_hash).unwrap();
@@ -117,7 +117,7 @@ async fn main() {
 
         // Node 1 fetches from Node 2
         let n2_obj_data = node2_vfs.get_object(&node2_hash).unwrap();
-        node1_vfs.create_object(&node2_hash, &n2_obj_data).unwrap();
+        node1_vfs.create_object(&node2_hash, &n2_obj_data.to_vec().as_slice()).unwrap();
         println!("Node 1 synced from Node 2 (object only).");
 
 
