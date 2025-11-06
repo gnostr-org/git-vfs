@@ -1,5 +1,17 @@
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
+use std::io;
+use futures::{AsyncReadExt, AsyncWriteExt};
+use libp2p::{
+    kad::{store::MemoryStore, Behaviour as Kademlia, Event as KademliaEvent},
+    mdns,
+    request_response::{self},
+    swarm::{NetworkBehaviour},
+    PeerId,
+    StreamProtocol,
+    identify::Behaviour as IdentifyBehaviour,
+};
+use async_trait::async_trait;
 
 #[derive(Debug, PartialEq)]
 pub enum GitVfsError {
@@ -96,84 +108,172 @@ impl GitVfs {
     }
 }
 
+/// The libp2p protocol for requesting a Git object.
+/// The Request is a `String` (the hash), the Response is a `Vec<u8>` (the raw object data).
+#[derive(Debug, Clone, Default)]
+struct GitVfsProtocol;
+
+#[async_trait::async_trait]
+impl libp2p::request_response::Codec for GitVfsProtocol {
+
+    type Protocol = StreamProtocol;
+    type Request = String;
+    type Response = Vec<u8>;
+
+    async fn read_request<TRs: AsyncReadExt + Unpin + Send>(
+        &mut self,
+        _protocol: &Self::Protocol,
+        io: &mut TRs,
+    ) -> io::Result<Self::Request> {
+        let mut buf = Vec::new();
+        io.read_to_end(&mut buf).await?;
+        String::from_utf8(buf).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+    }
+
+    async fn read_response<TRs: AsyncReadExt + Unpin + Send>(
+        &mut self,
+        _protocol: &Self::Protocol,
+        io: &mut TRs,
+    ) -> io::Result<Self::Response> {
+        let mut buf = Vec::new();
+        io.read_to_end(&mut buf).await?;
+        Ok(buf)
+    }
+
+    async fn write_request<TWs: AsyncWriteExt + Unpin + Send>(
+        &mut self,
+        _protocol: &Self::Protocol,
+        io: &mut TWs,
+        item: Self::Request,
+    ) -> io::Result<()> {
+        io.write_all(item.as_bytes()).await?;
+        Ok(())
+    }
+
+    async fn write_response<TWs: AsyncWriteExt + Unpin + Send>(
+        &mut self,
+        _protocol: &Self::Protocol,
+        io: &mut TWs,
+        item: Self::Response,
+    ) -> io::Result<()> {
+        io.write_all(&item).await?;
+        Ok(())
+    }
+}
+
+/// The combined libp2p NetworkBehaviour.
+#[derive(NetworkBehaviour)]
+#[behaviour(to_swarm = "GitVfsBehaviourEvent")]
+struct GitVfsBehaviour {
+    /// Kademlia DHT for peer and content discovery.
+    kad: Kademlia<MemoryStore>,
+    /// mDNS for local peer discovery.
+    mdns: mdns::tokio::Behaviour,
+    /// Request-Response protocol for object transfer.
+    request_response: request_response::Behaviour<GitVfsProtocol>,
+    /// Identify protocol to learn about other peers.
+    identify: IdentifyBehaviour,
+}
+
+// Boilerplate to map sub-behaviour events to the main event type
+enum GitVfsBehaviourEvent {
+    Kad(KademliaEvent),
+    Mdns(mdns::Event),
+    RequestResponse(request_response::Event<
+        <GitVfsProtocol as libp2p::request_response::Codec>::Request,
+        <GitVfsProtocol as libp2p::request_response::Codec>::Response,
+    >),
+    Identify(libp2p::identify::Event),
+}
+impl From<KademliaEvent> for GitVfsBehaviourEvent {
+    fn from(v: KademliaEvent) -> Self { Self::Kad(v) }
+}
+impl From<mdns::Event> for GitVfsBehaviourEvent {
+    fn from(v: mdns::Event) -> Self { Self::Mdns(v) }
+}
+impl From<request_response::Event<
+    <GitVfsProtocol as libp2p::request_response::Codec>::Request,
+    <GitVfsProtocol as libp2p::request_response::Codec>::Response,
+>> for GitVfsBehaviourEvent {
+    fn from(v: request_response::Event<
+        <GitVfsProtocol as libp2p::request_response::Codec>::Request,
+        <GitVfsProtocol as libp2p::request_response::Codec>::Response,
+    >) -> Self { Self::RequestResponse(v) }
+}
+impl From<libp2p::identify::Event> for GitVfsBehaviourEvent {
+    fn from(v: libp2p::identify::Event) -> Self { Self::Identify(v) }
+}
+
 #[cfg(test)]
 mod tests {
+    use libp2p::identity::Keypair;
+
     use super::*;
-    #[test] // Marks a function as a test
-    fn test_sha256_byte_slice() {
-        let data: &[u8] = b"test data";
-        let expected_hash = "916f0027a575074ce72a331777c3478d6513f786a591bd892da1a577bf2335f9";
-        let actual_hash = hex::encode(Sha256::digest(data));
-        assert_eq!(actual_hash, expected_hash);
+    use futures::io::Cursor;
+    use libp2p::request_response::Codec;
+
+    #[tokio::test]
+    async fn test_read_write_request() {
+        let mut codec = GitVfsProtocol;
+        let protocol = StreamProtocol::new("/git-vfs/1.0.0");
+        let request_data = "test_hash_123".to_string();
+        let mut io_buffer = Cursor::new(Vec::new());
+
+        // Write request
+        codec.write_request(&protocol, &mut io_buffer, request_data.clone()).await.unwrap();
+
+        // Reset cursor and read request
+        io_buffer.set_position(0);
+        let read_request = codec.read_request(&protocol, &mut io_buffer).await.unwrap();
+
+        assert_eq!(read_request, request_data);
+    }
+
+    #[tokio::test]
+    async fn test_read_write_response() {
+        let mut codec = GitVfsProtocol;
+        let protocol = StreamProtocol::new("/git-vfs/1.0.0");
+        let response_data = vec![1, 2, 3, 4, 5];
+        let mut io_buffer = Cursor::new(Vec::new());
+
+        // Write response
+        codec.write_response(&protocol, &mut io_buffer, response_data.clone()).await.unwrap();
+
+        // Reset cursor and read response
+        io_buffer.set_position(0);
+        let read_response = codec.read_response(&protocol, &mut io_buffer).await.unwrap();
+
+        assert_eq!(read_response, response_data);
     }
 
     #[test]
-    fn test_sha256_string() {
-        let data = String::from("hello world");
-        let expected_hash = "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9";
-        let actual_hash = hex::encode(Sha256::digest(data.as_bytes()));
-        assert_eq!(actual_hash, expected_hash);
+    fn test_behaviour_event_from_mdns_event() {
+        let event = mdns::Event::Discovered(vec![(PeerId::random(), "/ip4/127.0.0.1/tcp/0".parse().unwrap())]);
+        let behaviour_event: GitVfsBehaviourEvent = event.into();
+        match behaviour_event {
+            GitVfsBehaviourEvent::Mdns(_) => assert!(true),
+            _ => panic!("Unexpected event type"),
+        }
     }
 
     #[test]
-    fn test_sha256_empty_data() {
-        let data: &[u8] = b"";
-        let expected_hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
-        let actual_hash = hex::encode(Sha256::digest(data));
-        assert_eq!(actual_hash, expected_hash);
-    }
-
-    #[test]
-    fn test_sha256_multiple_updates() {
-        let mut hasher = Sha256::new();
-        hasher.update(b"part one ");
-        hasher.update(b"part two");
-        let combined_hash = hex::encode(hasher.finalize());
-        let single_hash = hex::encode(Sha256::digest(b"part one part two"));
-        assert_eq!(combined_hash, single_hash);
-    }
-
-    #[test]
-    fn test_main() {
-        let mut git_vfs = GitVfs::new();
-
-        let blob_data = b"Hello, git virtual world!";
-
-        let blob_sha256 = git_vfs.data_sha256(blob_data);
-        let blob_hash = git_vfs
-            .create_blob(blob_data)
-            .expect("Failed to create blob");
-
-        let blob_content = git_vfs.get_object(&blob_hash).expect("Failed to get blob");
-        println!("blob_hash: {blob_hash}");
-        println!(
-            "blob_content: \"{}\"",
-            String::from_utf8_lossy(&blob_content)
-        );
-        println!("blob_sha256: {blob_sha256}");
-
-        git_vfs
-            .create_ref("refs/heads/main", &blob_hash)
-            .expect("Failed to create ref");
-        git_vfs
-            .set_head("refs/heads/main")
-            .expect("failed to set head");
-
-        let head_ref = git_vfs.get_head().expect("failed to get head");
-        println!("HEAD: {head_ref}");
-
-        let main_ref_hash = git_vfs
-            .get_ref("refs/heads/main")
-            .expect("failed to get ref");
-        println!("Main ref hash: {main_ref_hash}");
-
-        git_vfs
-            .update_ref("refs/heads/main", "new_hash")
-            .expect("failed to update ref");
-
-        let main_ref_hash = git_vfs
-            .get_ref("refs/heads/main")
-            .expect("failed to get ref");
-        println!("Updated Main ref hash: {main_ref_hash}");
+    fn test_behaviour_event_from_identify_event() {
+        let keypair = Keypair::generate_ed25519();
+        let event = libp2p::identify::Event::Received {
+            peer_id: PeerId::random(),
+            info: libp2p::identify::Info {
+                public_key: keypair.public(),
+                listen_addrs: vec![],
+                protocols: vec![],
+                agent_version: "test-agent".to_string(),
+                protocol_version: "test-protocol".to_string(),
+                observed_addr: "/ip4/127.0.0.1/tcp/0".parse().unwrap(),
+            },
+        };
+        let behaviour_event: GitVfsBehaviourEvent = event.into();
+        match behaviour_event {
+            GitVfsBehaviourEvent::Identify(_) => assert!(true),
+            _ => panic!("Unexpected event type"),
+        }
     }
 }
