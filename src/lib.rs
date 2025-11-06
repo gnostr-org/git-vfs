@@ -54,15 +54,8 @@ impl GitObject {
                 ).into_bytes()
             }
             GitObject::Tree(entries) => {
-                let mut tree_data = Vec::new();
-                for (name, (hash, kind)) in entries {
-                    let kind_str = match kind {
-                        GitObjectKind::Blob => "blob",
-                        GitObjectKind::Tree => "tree",
-                    };
-                    tree_data.extend_from_slice(format!("{} {} {}\n", kind_str, hash, name).as_bytes());
-                }
-                tree_data
+                let tree_object = GitObject::Tree(entries.clone());
+                tree_object.to_vec()
             }
         }
     }
@@ -711,7 +704,7 @@ mock_commit_message:New content from server";
                 format!("mock_commit_author:{}\nmock_commit_message:{}", c.author, c.message).into_bytes()
             },
             GitObject::Blob(d) => d,
-            GitObject::Tree(t) => t.to_vec(),
+            GitObject::Tree(t) => GitObject::Tree(t).to_vec(),
         };
         vfs_client.create_object(&new_blob_hash_server, &raw_data_to_store_new).expect("Client: Failed to create new object");
         println!("Client: Created new object for hash {}", new_blob_hash_server);
@@ -750,6 +743,7 @@ mock_commit_message:Content from original client";
                 format!("mock_commit_author:{}\nmock_commit_message:{}", c.author, c.message).into_bytes()
             },
             GitObject::Blob(d) => d,
+            GitObject::Tree(t) => GitObject::Tree(t).to_vec(),
         };
         vfs_server_new.create_object(&blob_hash_client_orig, &raw_data_to_store_new_client).expect("New Server: Failed to create object");
         println!("New Server: Created object for hash {}", blob_hash_client_orig);
