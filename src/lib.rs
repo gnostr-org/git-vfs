@@ -420,7 +420,7 @@ mod tests {
     fn test_create_blob() {
         let mut git_vfs = GitVfs::new();
         let data = b"blob content";
-        let expected_hash = format!("{}", data.len()); // Using length as hash for simplicity
+        let expected_hash = "7b24cf3d897fd680e0258c1c7c23db50a5428581ed1785c08de505c381b4c4b5"; // SHA256 hash for b"blob content"
 
         let hash = git_vfs.create_blob(data).unwrap();
         assert_eq!(hash, expected_hash);
@@ -433,7 +433,7 @@ mod tests {
     fn test_create_blob_empty_data() {
         let mut git_vfs = GitVfs::new();
         let data = b"";
-        let expected_hash = "0"; // Length is 0
+        let expected_hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"; // SHA256 hash for b""
 
         let hash = git_vfs.create_blob(data).unwrap();
         assert_eq!(hash, expected_hash);
