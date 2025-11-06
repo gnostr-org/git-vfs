@@ -2,7 +2,7 @@
 use std::io;
 use futures::{AsyncReadExt, AsyncWriteExt};
 use libp2p::{
-    kad::{store::MemoryStore, QueryId, RecordKey, ProgressStep},
+    kad::{store::MemoryStore, QueryId, RecordKey},
     mdns,
     request_response::{self},
     swarm::{NetworkBehaviour},
@@ -158,11 +158,11 @@ mod tests {
     fn test_behaviour_event_from_kademlia_event() {
         let event = KademliaEvent::OutboundQueryProgressed {
             id: QueryId::new(0),
-            result: libp2p::kad::QueryResult::GetProviders(libp2p::kad::GetProvidersOk {
+            result: libp2p::kad::QueryResult::GetProviders(Ok(libp2p::kad::GetProvidersOk {
                 key: RecordKey::new(b"test"),
                 providers: Vec::new(),
             }),
-            stats: libp2p::kad::QueryStats::new(),
+            stats: libp2p::kad::QueryStats::empty(),
         };
         let behaviour_event: GitVfsBehaviourEvent = event.into();
         match behaviour_event {
