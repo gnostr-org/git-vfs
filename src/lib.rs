@@ -210,6 +210,7 @@ impl From<libp2p::identify::Event> for GitVfsBehaviourEvent {
 #[cfg(test)]
 mod tests {
     use libp2p::identity::Keypair;
+    use libp2p::PeerId;
 
     use super::*;
     use futures::io::Cursor;
