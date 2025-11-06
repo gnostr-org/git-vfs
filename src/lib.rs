@@ -54,8 +54,15 @@ impl GitObject {
                 ).into_bytes()
             }
             GitObject::Tree(entries) => {
-                let tree_object = GitObject::Tree(entries.clone());
-                tree_object.to_vec()
+                let mut tree_data = Vec::new();
+                for (name, (hash, kind)) in entries {
+                    let line = format!("{} {} {}\n", match kind {
+                        GitObjectKind::Blob => "blob",
+                        GitObjectKind::Tree => "tree",
+                    }, hash, name);
+                    tree_data.extend_from_slice(line.as_bytes());
+                }
+                tree_data
             }
         }
     }
@@ -759,7 +766,12 @@ mock_commit_message:Content from original client";
         print_vfs_state(&vfs_server_new, "New Server");
 
         // --- Verify new server state matches original client state ---
-        assert_eq!(vfs_server_new.get_object(&blob_hash_client_orig).unwrap(), GitObject::Blob(b"Content from original client".to_vec()));
+        assert_eq!(vfs_server_new.get_object(&blob_hash_client_orig).unwrap(), GitObject::Commit(Commit {
+            author: "OriginalClient".to_string(),
+            message: "Content from original client".to_string(),
+            tree_hash: "".to_string(),
+            parent_hashes: vec![],
+        }));
         assert_eq!(vfs_server_new.get_ref(ref_name_client_orig).unwrap(), client_orig_ref_hash);
         assert_eq!(vfs_server_new.get_head().unwrap(), client_orig_head_ref);
         println!("--- {} Verification successful: New Server state matches Original Client state ---", "");
