@@ -99,7 +99,7 @@ impl GitVfs {
         Ok(hash)
     }
 
-    pub fn data_sha256(&mut self, data_to_hash: &[u8]) -> String {
+    pub fn data_sha256(&self, data_to_hash: &[u8]) -> String {
         let mut hasher = Sha256::new();
         hasher.update(data_to_hash);
         let result = hasher.finalize();
