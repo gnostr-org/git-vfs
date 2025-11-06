@@ -52,11 +52,9 @@ impl libp2p::request_response::Codec for GitVfsProtocol {
         _protocol: &Self::Protocol,
         io: &mut TWs,
         item: Self::Request,
-    ) -> futures::future::BoxFuture<'_, io::Result<()>> {
-        Box::pin(async move {
-            io.write_all(item.as_bytes()).await?;
-            Ok(())
-        })
+    ) -> io::Result<()> {
+        io.write_all(item.as_bytes()).await?;
+        Ok(())
     }
 
     async fn write_response<TWs: AsyncWriteExt + Unpin + Send>(
@@ -64,11 +62,9 @@ impl libp2p::request_response::Codec for GitVfsProtocol {
         _protocol: &Self::Protocol,
         io: &mut TWs,
         item: Self::Response,
-    ) -> futures::future::BoxFuture<'_, io::Result<()>> {
-        Box::pin(async move {
-            io.write_all(&item).await?;
-            Ok(())
-        })
+    ) -> io::Result<()> {
+        io.write_all(&item).await?;
+        Ok(())
     }
 }
 
