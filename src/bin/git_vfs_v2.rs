@@ -116,3 +116,99 @@ async fn main() {
     println!("Git VFS v2 starting...");
     // TODO: Implement actual logic here
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use futures::io::Cursor;
+    use libp2p::request_response::Codec;
+
+    #[tokio::test]
+    async fn test_read_write_request() {
+        let mut codec = GitVfsProtocol;
+        let protocol = libp2p::StreamProtocol::new("/git-vfs/1.0.0");
+        let request_data = "test_hash_123".to_string();
+        let mut io_buffer = Cursor::new(Vec::new());
+
+        // Write request
+        codec.write_request(&mut io_buffer, &protocol, request_data.clone()).await.unwrap();
+        
+        // Reset cursor and read request
+        io_buffer.set_position(0);
+        let read_request = codec.read_request(&mut io_buffer, &protocol).await.unwrap();
+
+        assert_eq!(read_request, request_data);
+    }
+
+    #[tokio::test]
+    async fn test_read_write_response() {
+        let mut codec = GitVfsProtocol;
+        let protocol = libp2p::StreamProtocol::new("/git-vfs/1.0.0");
+        let response_data = vec![1, 2, 3, 4, 5];
+        let mut io_buffer = Cursor::new(Vec::new());
+
+        // Write response
+        codec.write_response(&mut io_buffer, &protocol, response_data.clone()).await.unwrap();
+
+        // Reset cursor and read response
+        io_buffer.set_position(0);
+        let read_response = codec.read_response(&mut io_buffer, &protocol).await.unwrap();
+
+        assert_eq!(read_response, response_data);
+    }
+
+    #[test]
+    fn test_behaviour_event_from_kademlia_event() {
+        let event = KademliaEvent::OutboundQueryCompleted {
+            id: QueryId::new(),
+            result: libp2p::kad::QueryResult::GetProviders(GetProvidersResult {
+                key: RecordKey::new("test"),
+                providers: Vec::new(),
+            }),
+            stats: Default::default(),
+        };
+        let behaviour_event: GitVfsBehaviourEvent = event.into();
+        match behaviour_event {
+            GitVfsBehaviourEvent::Kad(_) => assert!(true),
+            _ => panic!("Unexpected event type"),
+        }
+    }
+
+    #[test]
+    fn test_behaviour_event_from_mdns_event() {
+        let event = mdns::Event::Discovered(vec![(PeerId::random(), "localhost".parse().unwrap())].into_iter());
+        let behaviour_event: GitVfsBehaviourEvent = event.into();
+        match behaviour_event {
+            GitVfsBehaviourEvent::Mdns(_) => assert!(true),
+            _ => panic!("Unexpected event type"),
+        }
+    }
+
+    #[test]
+    fn test_behaviour_event_from_request_response_event() {
+        let event: request_response::Event<String, Vec<u8>> = request_response::Event::InboundRequest {
+            request_id: request_response::InboundRequestId::new(),
+            request: "test_hash".to_string(),
+            channel: request_response::ResponseChannel::new_json(),
+        };
+        let behaviour_event: GitVfsBehaviourEvent = event.into();
+        match behaviour_event {
+            GitVfsBehaviourEvent::RequestResponse(_) => assert!(true),
+            _ => panic!("Unexpected event type"),
+        }
+    }
+
+    #[test]
+    fn test_behaviour_event_from_identify_event() {
+        let event = libp2p::identify::Event::Received {
+            peer_id: PeerId::random(),
+            info: Default::default(),
+        };
+        let behaviour_event: GitVfsBehaviourEvent = event.into();
+        match behaviour_event {
+            GitVfsBehaviourEvent::Identify(_) => assert!(true),
+            _ => panic!("Unexpected event type"),
+        }
+    }
+}
+
