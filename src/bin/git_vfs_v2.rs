@@ -159,14 +159,13 @@ mod tests {
     #[test]
     fn test_behaviour_event_from_kademlia_event() {
         let event = KademliaEvent::OutboundQueryProgressed {
-            id: Default::default(),
+            id: QueryId(0),
             result: libp2p::kad::QueryResult::GetProviders(Ok(libp2p::kad::GetProvidersOk::FoundProviders {
                 key: RecordKey::new(b"test"),
-                providers: Vec::new(),
-                closer_peers: Vec::new(),
+                providers: std::collections::HashSet::new(),
             })),
             stats: libp2p::kad::QueryStats::empty(),
-            step: Default::default(),
+            step: libp2p::kad::ProgressStep::Init,
         };
         let behaviour_event: GitVfsBehaviourEvent = event.into();
         match behaviour_event {
@@ -190,9 +189,9 @@ mod tests {
         let event: request_response::Event<String, Vec<u8>> = request_response::Event::Message {
             peer: PeerId::random(),
             message: request_response::Message::Request {
-                request_id: Default::default(),
+                request_id: request_response::InboundRequestId(0),
                 request: "test_hash".to_string(),
-                channel: Default::default(),
+                channel: request_response::ResponseChannel(Default::default()),
             },
         };
         let behaviour_event: GitVfsBehaviourEvent = event.into();
