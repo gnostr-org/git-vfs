@@ -38,7 +38,14 @@ async fn main() {
 
     // Verify blob content
     let retrieved_blob = git_vfs.get_object(&blob_hash).expect("Failed to retrieve blob");
-    println!("Retrieved blob content: \"{}\"", String::from_utf8_lossy(&retrieved_blob));
+    match retrieved_blob {
+        git_vfs::GitObject::Blob(data) => {
+            println!("Retrieved blob content: \"{}\"", String::from_utf8_lossy(&data));
+        }
+        _ => {
+            println!("Retrieved object was not a blob");
+        }
+    }
 
     // 2. Create a reference (e.g., a branch)
     let branch_name = "refs/heads/main";
