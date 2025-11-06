@@ -94,7 +94,7 @@ impl GitVfs {
     pub fn create_blob(&mut self, data: &[u8]) -> GitVfsResult<String> {
         // For simplicity, we'll use the length as a placeholder hash for blobs.
         // In a real Git implementation, this would be a SHA-1 or SHA-256 hash.
-        let hash = format!("{}", data.len());
+        let hash = self.data_sha256(data);
         self.create_object(&hash, data)?;
         Ok(hash)
     }
