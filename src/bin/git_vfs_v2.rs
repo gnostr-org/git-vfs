@@ -1,18 +1,15 @@
 // --- Required Imports ---
 use std::io;
-use futures::{AsyncReadExt, AsyncWriteExt, StreamExt};
+use futures::{AsyncReadExt, AsyncWriteExt};
 use libp2p::{
     kad::{store::MemoryStore, GetProvidersResult, QueryId, RecordKey},
     mdns,
-    request_response::{self, ProtocolSupport},
-    swarm::{NetworkBehaviour, SwarmEvent},
-    PeerId, Swarm, SwarmBuilder, identity, Transport,
+    request_response::{self},
+    swarm::{NetworkBehaviour},
+    PeerId,
 };
-use libp2p::noise::Config as NoiseConfig;
-use libp2p_yamux::Config as YamuxConfig;
 use libp2p::kad::Behaviour as Kademlia;
 use libp2p::kad::Event as KademliaEvent;
-use libp2p::StreamProtocol;
 // use libp2p::request_response::RequestId; // Removed as it's likely InboundRequestId or OutboundRequestId
 
 /// The libp2p protocol for requesting a Git object.
@@ -152,17 +149,17 @@ mod tests {
 
         // Reset cursor and read response
         io_buffer.set_position(0);
-        let read_response = codec.read_response(&mut io_buffer, &protocol).await.unwrap();
+        let read_response = codec.read_response(&protocol, &mut io_buffer).await.unwrap();
 
         assert_eq!(read_response, response_data);
     }
 
     #[test]
     fn test_behaviour_event_from_kademlia_event() {
-        let event = KademliaEvent::OutboundQueryCompleted {
-            id: QueryId::new(),
-            result: libp2p::kad::QueryResult::GetProviders(GetProvidersResult {
-                key: RecordKey::new("test"),
+        let event = KademliaEvent::OutboundQueryProgressed {
+            id: QueryId::from(0),
+            result: libp2p::kad::QueryResult::GetProviders(libp2p::kad::GetProvidersOk {
+                key: RecordKey::new(b"test"),
                 providers: Vec::new(),
             }),
             stats: Default::default(),
@@ -176,7 +173,7 @@ mod tests {
 
     #[test]
     fn test_behaviour_event_from_mdns_event() {
-        let event = mdns::Event::Discovered(vec![(PeerId::random(), "localhost".parse().unwrap())].into_iter());
+        let event = mdns::Event::Discovered(vec![(PeerId::random(), "localhost".parse().unwrap())]);
         let behaviour_event: GitVfsBehaviourEvent = event.into();
         match behaviour_event {
             GitVfsBehaviourEvent::Mdns(_) => assert!(true),
@@ -186,10 +183,13 @@ mod tests {
 
     #[test]
     fn test_behaviour_event_from_request_response_event() {
-        let event: request_response::Event<String, Vec<u8>> = request_response::Event::InboundRequest {
-            request_id: request_response::InboundRequestId::new(),
-            request: "test_hash".to_string(),
-            channel: request_response::ResponseChannel::new_json(),
+        let event: request_response::Event<String, Vec<u8>> = request_response::Event::Message {
+            peer: PeerId::random(),
+            message: request_response::Message::Request {
+                request_id: request_response::InboundRequestId::from(0),
+                request: "test_hash".to_string(),
+                channel: request_response::ResponseChannel::new(Default::default()),
+            },
         };
         let behaviour_event: GitVfsBehaviourEvent = event.into();
         match behaviour_event {
@@ -202,7 +202,7 @@ mod tests {
     fn test_behaviour_event_from_identify_event() {
         let event = libp2p::identify::Event::Received {
             peer_id: PeerId::random(),
-            info: Default::default(),
+            info: libp2p::identify::Info::default(),
         };
         let behaviour_event: GitVfsBehaviourEvent = event.into();
         match behaviour_event {
