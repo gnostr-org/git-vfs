@@ -162,7 +162,7 @@ mod tests {
                 key: RecordKey::new(b"test"),
                 providers: Vec::new(),
             }),
-            stats: Default::default(),
+            stats: libp2p::kad::QueryStats::new(),
         };
         let behaviour_event: GitVfsBehaviourEvent = event.into();
         match behaviour_event {
