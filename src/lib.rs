@@ -605,7 +605,7 @@ mod tests {
 
     #[test]
     fn test_data_sha256_byte_slice() {
-        let mut git_vfs = GitVfs::new();
+        let git_vfs = GitVfs::new();
         let data: &[u8] = b"test data";
         let expected_hash = "916f0027a575074ce72a331777c3478d6513f786a591bd892da1a577bf2335f9";
         let actual_hash = git_vfs.data_sha256(data);
@@ -614,7 +614,7 @@ mod tests {
 
     #[test]
     fn test_data_sha256_string() {
-        let mut git_vfs = GitVfs::new();
+        let git_vfs = GitVfs::new();
         let data = String::from("hello world");
         let expected_hash = "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9";
         let actual_hash = git_vfs.data_sha256(data.as_bytes());
@@ -623,7 +623,7 @@ mod tests {
 
     #[test]
     fn test_data_sha256_empty_data() {
-        let mut git_vfs = GitVfs::new();
+        let git_vfs = GitVfs::new();
         let data: &[u8] = b"";
         let expected_hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
         let actual_hash = git_vfs.data_sha256(data);
@@ -632,7 +632,7 @@ mod tests {
 
     #[test]
     fn test_data_sha256_multiple_updates() {
-        let mut git_vfs = GitVfs::new();
+        let _git_vfs = GitVfs::new();
         let mut hasher = Sha256::new();
         hasher.update(b"part one ");
         hasher.update(b"part two");
@@ -672,7 +672,8 @@ mock_commit_message:Initial commit from server";
                 // Reconstruct the mock data format expected by get_object for deserialization
                 format!("mock_commit_author:{}\nmock_commit_message:{}", c.author, c.message).into_bytes()
             },
-            GitObject::Blob(d) => d, // Should not happen for the initial commit object in this test
+            GitObject::Blob(d) => d,
+            GitObject::Tree(_) => panic!("Expected Blob or Commit, got Tree"),
         };
         vfs_client.create_object(&blob_hash_server, &raw_data_to_store).expect("Client: Failed to create object");
         println!("Client: Created object for hash {}", blob_hash_server);
