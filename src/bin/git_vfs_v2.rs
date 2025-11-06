@@ -116,6 +116,8 @@ async fn main() {
 
 #[cfg(test)]
 mod tests {
+    use libp2p::{identity, Multiaddr};
+
     use super::*;
     use futures::io::Cursor;
     use libp2p::request_response::Codec;
@@ -129,7 +131,7 @@ mod tests {
 
         // Write request
         codec.write_request(&protocol, &mut io_buffer, request_data.clone()).await.unwrap();
-        
+
         // Reset cursor and read request
         io_buffer.set_position(0);
         let read_request = codec.read_request(&protocol, &mut io_buffer).await.unwrap();
@@ -204,7 +206,14 @@ mod tests {
     fn test_behaviour_event_from_identify_event() {
         let event = libp2p::identify::Event::Received {
             peer_id: PeerId::random(),
-            info: libp2p::identify::Info::new(),
+            info: libp2p::identify::Info {
+                public_key: PeerId::random().to_public_key(),
+                listen_addrs: vec![],
+                protocols: vec![],
+                agent_version: "test-agent".to_string(),
+                protocol_version: "test-protocol".to_string(),
+                observed_addr: "/ip4/127.0.0.1/tcp/0".parse().unwrap(),
+            },
         };
         let behaviour_event: GitVfsBehaviourEvent = event.into();
         match behaviour_event {
