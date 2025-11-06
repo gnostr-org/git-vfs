@@ -279,6 +279,7 @@ impl From<libp2p::identify::Event> for GitVfsBehaviourEvent {
     fn from(v: libp2p::identify::Event) -> Self { Self::Identify(v) }
 }
 
+#[rustfmt::skip]
 #[cfg(test)]
 mod tests {
     use libp2p::identity::Keypair;
@@ -290,7 +291,7 @@ mod tests {
 
     // Helper function to print the current state of a GitVfs instance
     fn print_vfs_state(vfs: &GitVfs, node_name: &str) {
-        println!("---" {} " VFS State ---", node_name);
+        println!("--- {} VFS State ---", node_name);
         if let Some(head) = &vfs.head {
             println!("HEAD: {}", head);
             match vfs.get_ref(head) {
@@ -571,8 +572,7 @@ mod tests {
         let mut vfs_client = GitVfs::new();
 
         // --- Server: Populate initial state ---
-        println!("
----" {} " Initializing ---", "Server");
+        println!("--- {} Initializing ---", "Server");
         // Use mock commit data for testing get_object's deserialization
         let mock_commit_data_server = b"mock_commit_author:Server
 mock_commit_message:Initial commit from server";
@@ -585,8 +585,7 @@ mock_commit_message:Initial commit from server";
         print_vfs_state(&vfs_server, "Server");
 
         // --- Client: Fetch changes from server ---
-        println!("
----" {} " Fetching from Server ---", "Client");
+        println!("--- {} Fetching from Server ---", "Client");
 
         // Fetch object
         let server_object_data = vfs_server.get_object(&blob_hash_server).expect("Server: Failed to get object for client");
@@ -615,8 +614,7 @@ mock_commit_message:Initial commit from server";
         print_vfs_state(&vfs_client, "Client");
 
         // --- Server: Populate new changes ---
-        println!("
----" {} " Making new changes ---", "Server");
+        println!("--- {} Making new changes ---", "Server");
         let new_mock_commit_data_server = b"mock_commit_author:Server
 mock_commit_message:New content from server";
         let new_blob_hash_server = vfs_server.data_sha256(new_mock_commit_data_server);
@@ -627,8 +625,7 @@ mock_commit_message:New content from server";
         print_vfs_state(&vfs_server, "Server");
 
         // --- Client: Fetch updated changes from server ---
-        println!("
----" {} " Fetching updated changes from Server ---", "Client");
+        println!("--- {} Fetching updated changes from Server ---", "Client");
 
         // Fetch updated object
         let server_new_object_data = vfs_server.get_object(&new_blob_hash_server).expect("Server: Failed to get new object for client");
@@ -649,14 +646,12 @@ mock_commit_message:New content from server";
         print_vfs_state(&vfs_client, "Client");
 
         // --- Now, reverse the roles: Client becomes server, Server becomes client ---
-        println!("
----" {} " Reversing roles: Original Client becomes New Server ---", "");
+        println!("--- {} Reversing roles: Original Client becomes New Server ---", "");
         let mut vfs_server_new = GitVfs::new(); // This will be the new server
         let mut vfs_client_new = GitVfs::new(); // This will be the new client
 
         // Populate new server state (using original client's state as source)
-        println!("
----" {} " Initializing ---", "New Server (Original Client)");
+        println!("--- {} Initializing ---", "New Server (Original Client)");
         let mock_commit_data_client_orig = b"mock_commit_author:OriginalClient
 mock_commit_message:Content from original client";
         let blob_hash_client_orig = vfs_client.data_sha256(mock_commit_data_client_orig);
@@ -670,8 +665,7 @@ mock_commit_message:Content from original client";
         print_vfs_state(&vfs_client, "Original Client");
 
         // --- New Client: Fetch changes from original client ---
-        println!("
----" {} " Fetching from Original Client ---", "New Client");
+        println!("--- {} Fetching from Original Client ---", "New Client");
         let client_orig_object_data = vfs_client.get_object(&blob_hash_client_orig).expect("Original Client: Failed to get object for new client");
         let raw_data_to_store_new_client = match client_orig_object_data {
             GitObject::Commit(c) => {
@@ -696,7 +690,6 @@ mock_commit_message:Content from original client";
         assert_eq!(vfs_server_new.get_object(&blob_hash_client_orig).unwrap(), GitObject::Commit(Commit { author: "OriginalClient".to_string(), message: "Content from original client".to_string() }));
         assert_eq!(vfs_server_new.get_ref(ref_name_client_orig).unwrap(), client_orig_ref_hash);
         assert_eq!(vfs_server_new.get_head().unwrap(), client_orig_head_ref);
-        println!("
----" {} " Verification successful: New Server state matches Original Client state ---", "");
+        println!("--- {} Verification successful: New Server state matches Original Client state ---", "");
     }
 }
