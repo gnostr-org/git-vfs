@@ -674,7 +674,6 @@ mock_commit_message:Initial commit from server";
             },
             GitObject::Blob(d) => d,
             GitObject::Tree(_) => panic!("Expected Blob or Commit, got Tree"),
-            GitObject::Tree(_) => panic!("Expected Blob or Commit, got Tree"),
         };
         vfs_client.create_object(&blob_hash_server, &raw_data_to_store).expect("Client: Failed to create object");
         println!("Client: Created object for hash {}", blob_hash_server);
