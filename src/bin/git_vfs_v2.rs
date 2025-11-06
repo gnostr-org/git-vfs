@@ -12,7 +12,7 @@ use libp2p::noise::Config as NoiseConfig;
 use libp2p_yamux::Config as YamuxConfig;
 use libp2p::kad::Behaviour as Kademlia;
 use libp2p::kad::Event as KademliaEvent;
-use libp2p::core::ProtocolName;
+use libp2p::StreamProtocol;
 // use libp2p::request_response::RequestId; // Removed as it's likely InboundRequestId or OutboundRequestId
 
 /// The libp2p protocol for requesting a Git object.
@@ -26,22 +26,10 @@ impl Default for GitVfsProtocol {
     }
 }
 
-impl ProtocolName for GitVfsProtocol {
-    fn protocol_name(&self) -> &[u8] {
-        self.0.as_bytes()
-    }
-}
-
-impl AsRef<str> for GitVfsProtocol {
-    fn as_ref(&self) -> &str {
-        &self.0
-    }
-}
-
 #[async_trait::async_trait]
 impl libp2p::request_response::Codec for GitVfsProtocol {
 
-    type Protocol = GitVfsProtocol;
+    type Protocol = libp2p::StreamProtocol;
     type Request = String;
     type Response = Vec<u8>;
 
