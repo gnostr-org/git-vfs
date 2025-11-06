@@ -159,7 +159,7 @@ mod tests {
 
     #[test]
     fn test_behaviour_event_from_mdns_event() {
-        let event = mdns::Event::Discovered(vec![(PeerId::random(), "localhost".parse().unwrap())]);
+        let event = mdns::Event::Discovered(vec![(PeerId::random(), "/ip4/127.0.0.1/tcp/0".parse().unwrap())]);
         let behaviour_event: GitVfsBehaviourEvent = event.into();
         match behaviour_event {
             GitVfsBehaviourEvent::Mdns(_) => assert!(true),
