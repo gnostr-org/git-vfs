@@ -2,7 +2,7 @@ use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::io;
 use futures::{AsyncReadExt, AsyncWriteExt};
-use libp2p{
+use libp2p::{
     kad::{store::MemoryStore, Behaviour as Kademlia, Event as KademliaEvent},
     mdns,
     request_response::{self},
@@ -216,7 +216,7 @@ mod tests {
 
     // Helper function to print the current state of a GitVfs instance
     fn print_vfs_state(vfs: &GitVfs, node_name: &str) {
-        println!("---" {} " VFS State ---", node_name);
+        println!("--- {} VFS State ---", node_name);
         if let Some(head) = &vfs.head {
             println!("HEAD: {}", head);
             match vfs.get_ref(head) {
