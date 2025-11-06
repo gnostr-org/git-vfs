@@ -17,14 +17,8 @@ use libp2p::StreamProtocol;
 
 /// The libp2p protocol for requesting a Git object.
 /// The Request is a `String` (the hash), the Response is a `Vec<u8>` (the raw object data).
-#[derive(Debug, Clone)]
-struct GitVfsProtocol(String);
-
-impl Default for GitVfsProtocol {
-    fn default() -> Self {
-        Self(String::from("/git-vfs/1.0.0"))
-    }
-}
+#[derive(Debug, Clone, Default)]
+struct GitVfsProtocol;
 
 #[async_trait::async_trait]
 impl libp2p::request_response::Codec for GitVfsProtocol {
@@ -33,16 +27,14 @@ impl libp2p::request_response::Codec for GitVfsProtocol {
     type Request = String;
     type Response = Vec<u8>;
 
-    fn read_request<TRs: AsyncReadExt + Unpin + Send>(
+    async fn read_request<TRs: AsyncReadExt + Unpin + Send>(
         &mut self, 
         _protocol: &Self::Protocol,
         io: &mut TRs,
-    ) -> futures::future::BoxFuture<'_, io::Result<Self::Request>> {
-        Box::pin(async move {
-            let mut buf = Vec::new();
-            io.read_to_end(&mut buf).await?;
-            String::from_utf8(buf).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
-        })
+    ) -> io::Result<Self::Request> {
+        let mut buf = Vec::new();
+        io.read_to_end(&mut buf).await?;
+        String::from_utf8(buf).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
     }
 
     fn read_response<TRs: AsyncReadExt + Unpin + Send>(
