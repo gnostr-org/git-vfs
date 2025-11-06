@@ -188,7 +188,7 @@ mod tests {
             message: request_response::Message::Request {
                 request_id: request_response::InboundRequestId::new(),
                 request: "test_hash".to_string(),
-                channel: request_response::ResponseChannel::new(Default::default()),
+                channel: request_response::ResponseChannel::new(),
             },
         };
         let behaviour_event: GitVfsBehaviourEvent = event.into();
