@@ -121,22 +121,37 @@ impl GitVfs {
                         }
                     }
                     Ok(GitObject::Commit(Commit { author, message, tree_hash, parent_hashes }))
-                } else if data_str.lines().any(|line| line.starts_with("blob ") || line.starts_with("tree ")) {
+                } else { // If not a Commit, try to parse as Tree or Blob
                     let mut entries = HashMap::new();
-                    for line in data_str.lines() {
-                        let parts: Vec<&str> = line.splitn(3, ' ').collect();
-                        if parts.len() == 3 {
-                            let kind = match parts[0] {
-                                "blob" => GitObjectKind::Blob,
-                                "tree" => GitObjectKind::Tree,
-                                _ => continue,
-                            };
-                            entries.insert(parts[2].to_string(), (parts[1].to_string(), kind));
+                    let mut potential_tree = true;
+
+                    if data_str.is_empty() { // An empty string is a blob, not a tree
+                        potential_tree = false;
+                    } else {
+                        for line in data_str.lines() {
+                            let parts: Vec<&str> = line.splitn(3, ' ').collect();
+                            if parts.len() == 3 {
+                                let kind = match parts[0] {
+                                    "blob" => GitObjectKind::Blob,
+                                    "tree" => GitObjectKind::Tree,
+                                    _ => {
+                                        potential_tree = false;
+                                        break;
+                                    }
+                                };
+                                entries.insert(parts[2].to_string(), (parts[1].to_string(), kind));
+                            } else {
+                                potential_tree = false;
+                                break;
+                            }
                         }
                     }
-                    Ok(GitObject::Tree(entries))
-                } else {
-                    Ok(GitObject::Blob(data.clone()))
+
+                    if potential_tree {
+                        Ok(GitObject::Tree(entries))
+                    } else {
+                        Ok(GitObject::Blob(data.clone()))
+                    }
                 }
             }
             None => Err(GitVfsError::NotFound),
