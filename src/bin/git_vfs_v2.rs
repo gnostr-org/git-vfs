@@ -12,7 +12,7 @@ use libp2p::noise::Config as NoiseConfig;
 use libp2p_yamux::Config as YamuxConfig;
 use libp2p::kad::Behaviour as Kademlia;
 use libp2p::kad::Event as KademliaEvent;
-use libp2p_core::ProtocolName;
+use libp2p::core::ProtocolName;
 // use libp2p::request_response::RequestId; // Removed as it's likely InboundRequestId or OutboundRequestId
 
 /// The libp2p protocol for requesting a Git object.
@@ -72,8 +72,8 @@ impl libp2p::request_response::Codec for GitVfsProtocol {
     async fn write_request<TWs: AsyncWriteExt + Unpin + Send>(
         &mut self,
         _protocol: &Self::Protocol,
-        item: Self::Request,
         io: &mut TWs,
+        item: Self::Request,
     ) -> futures::future::BoxFuture<'_, io::Result<()>> {
         Box::pin(async move {
             io.write_all(item.as_bytes()).await?;
@@ -84,8 +84,8 @@ impl libp2p::request_response::Codec for GitVfsProtocol {
     async fn write_response<TWs: AsyncWriteExt + Unpin + Send>(
         &mut self,
         _protocol: &Self::Protocol,
-        item: Self::Response,
         io: &mut TWs,
+        item: Self::Response,
     ) -> futures::future::BoxFuture<'_, io::Result<()>> {
         Box::pin(async move {
             io.write_all(&item).await?;
