@@ -8,7 +8,7 @@ use libp2p::{
     request_response::{self},
     swarm::{NetworkBehaviour},
     StreamProtocol,
-    identify::Behaviour as IdentifyBehaviour
+    identify::Behaviour as IdentifyBehaviour,
 };
 
 #[derive(Debug, PartialEq)]
