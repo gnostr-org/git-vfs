@@ -1,9 +1,7 @@
 // --- Required Imports ---
-use std::io;
-use std::env;
 
 // Import the GitVfs struct and its related types from the library
-use git_vfs::{GitVfs, GitVfsResult};
+use git_vfs::{GitVfs};
 
 // The following libp2p related items are not directly used in this simple binary and can be removed for now.
 // They are part of the network layer which is handled separately.

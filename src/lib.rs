@@ -7,11 +7,9 @@ use libp2p::{
     mdns,
     request_response::{self},
     swarm::{NetworkBehaviour},
-    PeerId,
     StreamProtocol,
-    identify::Behaviour as IdentifyBehaviour,
+    identify::Behaviour as IdentifyBehaviour
 };
-use async_trait::async_trait;
 
 #[derive(Debug, PartialEq)]
 pub enum GitVfsError {
@@ -113,6 +111,7 @@ impl GitVfs {
 /// The libp2p protocol for requesting a Git object.
 /// The Request is a `String` (the hash), the Response is a `Vec<u8>` (the raw object data).
 #[derive(Debug, Clone, Default)]
+#[allow(dead_code)]
 struct GitVfsProtocol;
 
 #[async_trait::async_trait]
@@ -166,6 +165,7 @@ impl libp2p::request_response::Codec for GitVfsProtocol {
 /// The combined libp2p NetworkBehaviour.
 #[derive(NetworkBehaviour)]
 #[behaviour(to_swarm = "GitVfsBehaviourEvent")]
+#[allow(dead_code)]
 struct GitVfsBehaviour {
     /// Kademlia DHT for peer and content discovery.
     kad: Kademlia<MemoryStore>,
@@ -178,6 +178,7 @@ struct GitVfsBehaviour {
 }
 
 // Boilerplate to map sub-behaviour events to the main event type
+#[allow(dead_code)]
 enum GitVfsBehaviourEvent {
     Kad(KademliaEvent),
     Mdns(mdns::Event),
