@@ -2,7 +2,7 @@
 use std::io;
 use futures::{AsyncReadExt, AsyncWriteExt};
 use libp2p::{
-    kad::{store::MemoryStore, QueryId, RecordKey, QueryProgressStep},
+    kad::{store::MemoryStore, QueryId, RecordKey, ProgressStep},
     mdns,
     request_response::{self},
     swarm::{NetworkBehaviour},
