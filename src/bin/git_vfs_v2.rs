@@ -131,11 +131,11 @@ mod tests {
         let mut io_buffer = Cursor::new(Vec::new());
 
         // Write request
-        codec.write_request(&mut io_buffer, &protocol, request_data.clone()).await.unwrap();
+        codec.write_request(&protocol, &mut io_buffer, request_data.clone()).await.unwrap();
         
         // Reset cursor and read request
         io_buffer.set_position(0);
-        let read_request = codec.read_request(&mut io_buffer, &protocol).await.unwrap();
+        let read_request = codec.read_request(&protocol, &mut io_buffer).await.unwrap();
 
         assert_eq!(read_request, request_data);
     }
@@ -148,7 +148,7 @@ mod tests {
         let mut io_buffer = Cursor::new(Vec::new());
 
         // Write response
-        codec.write_response(&mut io_buffer, &protocol, response_data.clone()).await.unwrap();
+        codec.write_response(&protocol, &mut io_buffer, response_data.clone()).await.unwrap();
 
         // Reset cursor and read response
         io_buffer.set_position(0);
