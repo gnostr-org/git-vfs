@@ -94,6 +94,8 @@ impl GitVfs {
     }
 
     pub fn create_blob(&mut self, data: &[u8]) -> GitVfsResult<String> {
+        // For simplicity, we'll use the length as a placeholder hash for blobs.
+        // In a real Git implementation, this would be a SHA-1 or SHA-256 hash.
         let hash = format!("{}", data.len());
         self.create_object(&hash, data)?;
         Ok(hash)
@@ -275,5 +277,180 @@ mod tests {
             GitVfsBehaviourEvent::Identify(_) => assert!(true),
             _ => panic!("Unexpected event type"),
         }
+    }
+
+    // --- New Tests for GitVfs struct methods ---
+
+    #[test]
+    fn test_git_vfs_new() {
+        let git_vfs = GitVfs::new();
+        assert!(git_vfs.objects.is_empty());
+        assert!(git_vfs.refs.is_empty());
+        assert!(git_vfs.head.is_none());
+    }
+
+    #[test]
+    fn test_create_object_and_get_object() {
+        let mut git_vfs = GitVfs::new();
+        let hash = "test_hash_123";
+        let data = b"some data";
+
+        let result = git_vfs.create_object(hash, data);
+        assert!(result.is_ok());
+
+        let retrieved_data = git_vfs.get_object(hash).unwrap();
+        assert_eq!(retrieved_data, data);
+    }
+
+    #[test]
+    fn test_create_object_already_exists() {
+        let mut git_vfs = GitVfs::new();
+        let hash = "test_hash_123";
+        let data = b"some data";
+
+        git_vfs.create_object(hash, data).unwrap();
+        let result = git_vfs.create_object(hash, b"different data");
+        assert_eq!(result, Err(GitVfsError::AlreadyExists));
+    }
+
+    #[test]
+    fn test_get_object_not_found() {
+        let git_vfs = GitVfs::new();
+        let result = git_vfs.get_object("non_existent_hash");
+        assert_eq!(result, Err(GitVfsError::NotFound));
+    }
+
+    #[test]
+    fn test_create_ref_and_get_ref() {
+        let mut git_vfs = GitVfs::new();
+        let ref_name = "refs/heads/main";
+        let hash = "main_commit_hash";
+
+        let result = git_vfs.create_ref(ref_name, hash);
+        assert!(result.is_ok());
+
+        let retrieved_hash = git_vfs.get_ref(ref_name).unwrap();
+        assert_eq!(retrieved_hash, hash);
+    }
+
+    #[test]
+    fn test_get_ref_not_found() {
+        let git_vfs = GitVfs::new();
+        let result = git_vfs.get_ref("refs/heads/non_existent");
+        assert_eq!(result, Err(GitVfsError::NotFound));
+    }
+
+    #[test]
+    fn test_update_ref() {
+        let mut git_vfs = GitVfs::new();
+        let ref_name = "refs/heads/main";
+        let initial_hash = "initial_hash";
+        let new_hash = "new_hash";
+
+        git_vfs.create_ref(ref_name, initial_hash).unwrap();
+        let result = git_vfs.update_ref(ref_name, new_hash);
+        assert!(result.is_ok());
+
+        let retrieved_hash = git_vfs.get_ref(ref_name).unwrap();
+        assert_eq!(retrieved_hash, new_hash);
+    }
+
+    #[test]
+    fn test_update_ref_not_found() {
+        let mut git_vfs = GitVfs::new();
+        let result = git_vfs.update_ref("refs/heads/non_existent", "some_hash");
+        assert_eq!(result, Err(GitVfsError::NotFound));
+    }
+
+    #[test]
+    fn test_set_head_and_get_head() {
+        let mut git_vfs = GitVfs::new();
+        let ref_name = "refs/heads/main";
+        let hash = "main_commit_hash";
+
+        git_vfs.create_ref(ref_name, hash).unwrap();
+        let result = git_vfs.set_head(ref_name);
+        assert!(result.is_ok());
+
+        let head_ref = git_vfs.get_head().unwrap();
+        assert_eq!(head_ref, ref_name);
+    }
+
+    #[test]
+    fn test_set_head_ref_not_found() {
+        let mut git_vfs = GitVfs::new();
+        let result = git_vfs.set_head("refs/heads/non_existent");
+        assert_eq!(result, Err(GitVfsError::NotFound));
+    }
+
+    #[test]
+    fn test_get_head_when_none_set() {
+        let git_vfs = GitVfs::new();
+        let result = git_vfs.get_head();
+        assert_eq!(result, Err(GitVfsError::NotFound));
+    }
+
+    #[test]
+    fn test_create_blob() {
+        let mut git_vfs = GitVfs::new();
+        let data = b"blob content";
+        let expected_hash = format!("{}", data.len()); // Using length as hash for simplicity
+
+        let hash = git_vfs.create_blob(data).unwrap();
+        assert_eq!(hash, expected_hash);
+
+        let retrieved_data = git_vfs.get_object(&hash).unwrap();
+        assert_eq!(retrieved_data, data);
+    }
+
+    #[test]
+    fn test_create_blob_empty_data() {
+        let mut git_vfs = GitVfs::new();
+        let data = b"";
+        let expected_hash = "0"; // Length is 0
+
+        let hash = git_vfs.create_blob(data).unwrap();
+        assert_eq!(hash, expected_hash);
+
+        let retrieved_data = git_vfs.get_object(&hash).unwrap();
+        assert_eq!(retrieved_data, data);
+    }
+
+    #[test]
+    fn test_data_sha256_byte_slice() {
+        let mut git_vfs = GitVfs::new();
+        let data: &[u8] = b"test data";
+        let expected_hash = "916f0027a575074ce72a331777c3478d6513f786a591bd892da1a577bf2335f9";
+        let actual_hash = git_vfs.data_sha256(data);
+        assert_eq!(actual_hash, expected_hash);
+    }
+
+    #[test]
+    fn test_data_sha256_string() {
+        let mut git_vfs = GitVfs::new();
+        let data = String::from("hello world");
+        let expected_hash = "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9";
+        let actual_hash = git_vfs.data_sha256(data.as_bytes());
+        assert_eq!(actual_hash, expected_hash);
+    }
+
+    #[test]
+    fn test_data_sha256_empty_data() {
+        let mut git_vfs = GitVfs::new();
+        let data: &[u8] = b"";
+        let expected_hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+        let actual_hash = git_vfs.data_sha256(data);
+        assert_eq!(actual_hash, expected_hash);
+    }
+
+    #[test]
+    fn test_data_sha256_multiple_updates() {
+        let mut git_vfs = GitVfs::new();
+        let mut hasher = Sha256::new();
+        hasher.update(b"part one ");
+        hasher.update(b"part two");
+        let combined_hash = hex::encode(hasher.finalize());
+        let single_hash = hex::encode(Sha256::digest(b"part one part two"));
+        assert_eq!(combined_hash, single_hash);
     }
 }
