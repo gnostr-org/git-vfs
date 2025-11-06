@@ -110,7 +110,7 @@ fn print_git_log(vfs: &GitVfs, node_name: &str, branch_name: &str) {
 
     println!("\n--- Cloning Node 1's state to Node 2 ---");
     let obj_data = node1_vfs.get_object(&initial_hash).unwrap();
-    node2_vfs.create_object(&initial_hash, &obj_data).unwrap();
+    node2_vfs.create_object(&initial_hash, &obj_data.to_vec().as_slice()).unwrap();
     node2_vfs.create_ref(main_ref, &initial_hash).unwrap();
     node2_vfs.set_head(main_ref).unwrap();
     print_vfs_state(&node2_vfs, "Node 2");
@@ -130,7 +130,7 @@ fn print_git_log(vfs: &GitVfs, node_name: &str, branch_name: &str) {
             // Clone Node 1's current state into Node 3
             let n1_current_obj_hash = node1_vfs.get_ref(main_ref).unwrap(); // Get current head hash
             let n1_current_obj_data = node1_vfs.get_object(&n1_current_obj_hash).unwrap();
-            node3_vfs.create_object(&n1_current_obj_hash, &n1_current_obj_data).unwrap();
+            node3_vfs.create_object(&n1_current_obj_hash, &n1_current_obj_data.to_vec().as_slice()).unwrap();
             node3_vfs.create_ref(main_ref, &n1_current_obj_hash).unwrap();
             node3_vfs.set_head(main_ref).unwrap();
             print_vfs_state(&node3_vfs, "Node 3");
@@ -139,7 +139,7 @@ fn print_git_log(vfs: &GitVfs, node_name: &str, branch_name: &str) {
             // Clone Node 1's current state into Node 4
             let n1_current_obj_hash_for_n4 = node1_vfs.get_ref(main_ref).unwrap(); // Re-fetch in case of concurrent changes (though not expected here)
             let n1_current_obj_data_for_n4 = node1_vfs.get_object(&n1_current_obj_hash_for_n4).unwrap();
-            node4_vfs.create_object(&n1_current_obj_hash_for_n4, &n1_current_obj_data_for_n4).unwrap();
+            node4_vfs.create_object(&n1_current_obj_hash_for_n4, &n1_current_obj_data_for_n4.to_vec().as_slice()).unwrap();
             node4_vfs.create_ref(main_ref, &n1_current_obj_hash_for_n4).unwrap();
             node4_vfs.set_head(main_ref).unwrap();
             print_vfs_state(&node4_vfs, "Node 4");
@@ -185,7 +185,7 @@ fn print_git_log(vfs: &GitVfs, node_name: &str, branch_name: &str) {
         // --- Simulate Syncing ---
         // Node 2 fetches from Node 1
         let n1_obj_data = node1_vfs.get_object(&node1_hash).unwrap();
-        node2_vfs.create_object(&node1_hash, &n1_obj_data).unwrap();
+        node2_vfs.create_object(&node1_hash, &n1_obj_data.to_vec().as_slice()).unwrap();
         // In a real scenario, nodes would decide how to merge. Here we'll just have Node 2
         // arbitrarily decide to update its main ref to Node 1's version for simplicity.
         node2_vfs.update_ref(main_ref, &node1_hash).unwrap();
@@ -193,13 +193,13 @@ fn print_git_log(vfs: &GitVfs, node_name: &str, branch_name: &str) {
 
         // Node 1 fetches from Node 2
         let n2_obj_data = node2_vfs.get_object(&node2_hash).unwrap();
-        node1_vfs.create_object(&node2_hash, &n2_obj_data).unwrap();
+        node1_vfs.create_object(&node2_hash, &n2_obj_data.to_vec().as_slice()).unwrap();
         println!("Node 1 synced from Node 2 (object only).");
 
         // Node 3 syncs from Node 1 (if initialized)
         if new_nodes_initialized {
             let n1_obj_data_for_n3 = node1_vfs.get_object(&node1_hash).unwrap();
-            node3_vfs.create_object(&node1_hash, &n1_obj_data_for_n3).unwrap();
+            node3_vfs.create_object(&node1_hash, &n1_obj_data_for_n3.to_vec().as_slice()).unwrap();
             node3_vfs.update_ref(main_ref, &node1_hash).unwrap(); // Node 3 updates to Node 1's latest
             println!("Node 3 synced from Node 1.");
         }
@@ -207,7 +207,7 @@ fn print_git_log(vfs: &GitVfs, node_name: &str, branch_name: &str) {
         // Node 4 syncs from Node 2 (if initialized)
         if new_nodes_initialized {
             let n2_obj_data_for_n4 = node2_vfs.get_object(&node2_hash).unwrap();
-            node4_vfs.create_object(&node2_hash, &n2_obj_data_for_n4).unwrap();
+            node4_vfs.create_object(&node2_hash, &n2_obj_data_for_n4.to_vec().as_slice()).unwrap();
             node4_vfs.update_ref(main_ref, &node2_hash).unwrap(); // Node 4 updates to Node 2's latest
             println!("Node 4 synced from Node 2.");
         }
