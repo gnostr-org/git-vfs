@@ -358,9 +358,37 @@ async fn main() {
 
         // Node 4 syncs from Node 2 (if initialized)
         if new_nodes_initialized {
-            let n2_obj_data_for_n4 = node2_vfs.get_object(&node2_hash).unwrap();
-            node4_vfs.create_object(&node2_hash, &n2_obj_data_for_n4.to_vec().as_slice()).unwrap();
-            node4_vfs.update_ref(main_ref, &node2_hash).unwrap(); // Node 4 updates to Node 2's latest
+            let node2_latest_commit_hash = node2_vfs.get_ref(main_ref).unwrap();
+            let node2_latest_commit = match node2_vfs.get_object(&node2_latest_commit_hash).unwrap() {
+                git_vfs::GitObject::Commit(c) => c,
+                _ => panic!("Expected commit object"),
+            };
+
+            // Fetch and create tree object
+            let node2_tree = match node2_vfs.get_object(&node2_latest_commit.tree_hash).unwrap() {
+                git_vfs::GitObject::Tree(t) => t,
+                _ => panic!("Expected tree object"),
+            };
+            node4_vfs.create_tree(node2_tree.clone()).unwrap();
+
+            // Fetch and create blob objects
+            for (_, (blob_hash, _)) in node2_tree.iter() {
+                let blob_data = match node2_vfs.get_object(blob_hash).unwrap() {
+                    git_vfs::GitObject::Blob(b) => b,
+                    _ => panic!("Expected blob object"),
+                };
+                node4_vfs.create_blob(&blob_data).unwrap();
+            }
+
+            // Create the commit object in Node 4
+            node4_vfs.create_commit(
+                &node2_latest_commit.author,
+                &node2_latest_commit.message,
+                &node2_latest_commit.tree_hash,
+                node2_latest_commit.parent_hashes.clone(),
+            ).unwrap();
+
+            node4_vfs.update_ref(main_ref, &node2_latest_commit_hash).unwrap(); // Node 4 updates to Node 2's latest
             println!("Node 4 synced from Node 2.");
         }
 
