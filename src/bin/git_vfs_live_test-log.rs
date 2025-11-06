@@ -102,16 +102,55 @@ fn print_git_log(vfs: &GitVfs, node_name: &str, branch_name: &str) {
     // --- INITIAL COMMIT ON NODE 1 and SYNC to NODE 2 ---
     println!("\n--- Initializing Node 1 with first commit ---");
     let initial_content = b"Initial commit from Node 1";
-    let initial_hash = node1_vfs.create_blob(initial_content).unwrap();
-    node1_vfs.create_ref(main_ref, &initial_hash).unwrap();
+    let initial_blob_hash = node1_vfs.create_blob(initial_content).unwrap();
+
+    let mut initial_tree_entries = std::collections::HashMap::new();
+    initial_tree_entries.insert("file1.txt".to_string(), (initial_blob_hash.clone(), git_vfs::GitObjectKind::Blob));
+    let initial_tree_hash = node1_vfs.create_tree(initial_tree_entries).unwrap();
+
+    let initial_commit_hash = node1_vfs.create_commit(
+        "Node 1 Author",
+        "Initial commit from Node 1",
+        &initial_tree_hash,
+        vec![],
+    ).unwrap();
+    node1_vfs.create_ref(main_ref, &initial_commit_hash).unwrap();
     node1_vfs.set_head(main_ref).unwrap();
     print_vfs_state(&node1_vfs, "Node 1");
     print_git_log(&node1_vfs, "Node 1", main_ref); // Log after initial commit
 
     println!("\n--- Cloning Node 1's state to Node 2 ---");
-    let obj_data = node1_vfs.get_object(&initial_hash).unwrap();
-    node2_vfs.create_object(&initial_hash, &obj_data.to_vec().as_slice()).unwrap();
-    node2_vfs.create_ref(main_ref, &initial_hash).unwrap();
+    let node1_head_commit_hash = node1_vfs.get_ref(main_ref).unwrap();
+    let node1_head_commit = match node1_vfs.get_object(&node1_head_commit_hash).unwrap() {
+        git_vfs::GitObject::Commit(c) => c,
+        _ => panic!("Expected commit object"),
+    };
+
+    // Fetch and create tree object
+    let node1_tree = match node1_vfs.get_object(&node1_head_commit.tree_hash).unwrap() {
+        git_vfs::GitObject::Tree(t) => t,
+        _ => panic!("Expected tree object"),
+    };
+    node2_vfs.create_tree(node1_tree.clone()).unwrap();
+
+    // Fetch and create blob objects (assuming only one for simplicity)
+    for (_, (blob_hash, _)) in node1_tree.iter() {
+        let blob_data = match node1_vfs.get_object(blob_hash).unwrap() {
+            git_vfs::GitObject::Blob(b) => b,
+            _ => panic!("Expected blob object"),
+        };
+        node2_vfs.create_blob(&blob_data).unwrap();
+    }
+
+    // Create the commit object in Node 2
+    node2_vfs.create_commit(
+        &node1_head_commit.author,
+        &node1_head_commit.message,
+        &node1_head_commit.tree_hash,
+        node1_head_commit.parent_hashes.clone(),
+    ).unwrap();
+
+    node2_vfs.create_ref(main_ref, &node1_head_commit_hash).unwrap();
     node2_vfs.set_head(main_ref).unwrap();
     print_vfs_state(&node2_vfs, "Node 2");
     print_git_log(&node2_vfs, "Node 2", main_ref); // Log after cloning

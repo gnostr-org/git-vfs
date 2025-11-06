@@ -25,14 +25,21 @@ pub type GitVfsResult<T> = Result<T, GitVfsError>;
 pub struct Commit {
     pub author: String,
     pub message: String,
-    // In a real Git implementation, this would also include parent hashes, committer, timestamp, etc.
+    pub tree_hash: String, // Hash of the root tree for this commit
+    pub parent_hashes: Vec<String>, // Hashes of parent commits
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum GitObjectKind {
+    Blob,
+    Tree,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum GitObject {
     Blob(Vec<u8>),
     Commit(Commit),
-    // Add other Git object types like Tree if needed
+    Tree(HashMap<String, (String, GitObjectKind)>), // name -> (hash, kind)
 }
 
 impl GitObject {
@@ -40,7 +47,22 @@ impl GitObject {
         match self {
             GitObject::Blob(data) => data.clone(),
             GitObject::Commit(commit) => {
-                format!("mock_commit_author:{}\nmock_commit_message:{}", commit.author, commit.message).into_bytes()
+                let parents = commit.parent_hashes.join(" ");
+                format!(
+                    "mock_commit_author:{}\nmock_commit_message:{}\nmock_commit_tree:{}\nmock_commit_parents:{}",
+                    commit.author, commit.message, commit.tree_hash, parents
+                ).into_bytes()
+            }
+            GitObject::Tree(entries) => {
+                let mut tree_data = Vec::new();
+                for (name, (hash, kind)) in entries {
+                    let kind_str = match kind {
+                        GitObjectKind::Blob => "blob",
+                        GitObjectKind::Tree => "tree",
+                    };
+                    tree_data.extend_from_slice(format!("{} {} {}\n", kind_str, hash, name).as_bytes());
+                }
+                tree_data
             }
         }
     }
@@ -80,30 +102,39 @@ impl GitVfs {
     pub fn get_object(&self, hash: &str) -> GitVfsResult<GitObject> {
         match self.objects.get(hash) {
             Some(data) => {
-                // Mock deserialization:
-                // This is a very basic placeholder. In a real Git implementation,
-                // you would parse the object type (blob, commit, tree) from the data
-                // and deserialize it accordingly.
-                // For this example, we'll make a crude assumption: if the data string
-                // contains "mock_commit_author", we'll treat it as a commit.
-                // Otherwise, it's a blob.
                 let data_str = String::from_utf8_lossy(data);
                 if data_str.contains("mock_commit_author") {
-                    // Attempt to extract author and message from the mock data.
-                    // This assumes a specific format that the test file will create.
-                    // For example, the test might create data like:
-                    // "mock_commit_author:John Doe\nmock_commit_message:Initial commit"
                     let mut author = "Unknown Author".to_string();
                     let mut message = "Unknown Message".to_string();
+                    let mut tree_hash = String::new();
+                    let mut parent_hashes = Vec::new();
 
-                    if let Some(author_line) = data_str.lines().find(|l| l.starts_with("mock_commit_author:")) {
-                        author = author_line.splitn(2, ':').nth(1).unwrap_or("").trim().to_string();
+                    for line in data_str.lines() {
+                        if let Some(a) = line.strip_prefix("mock_commit_author:") {
+                            author = a.trim().to_string();
+                        } else if let Some(m) = line.strip_prefix("mock_commit_message:") {
+                            message = m.trim().to_string();
+                        } else if let Some(t) = line.strip_prefix("mock_commit_tree:") {
+                            tree_hash = t.trim().to_string();
+                        } else if let Some(p) = line.strip_prefix("mock_commit_parents:") {
+                            parent_hashes = p.trim().split(' ').filter(|s| !s.is_empty()).map(|s| s.to_string()).collect();
+                        }
                     }
-                    if let Some(message_line) = data_str.lines().find(|l| l.starts_with("mock_commit_message:")) {
-                        message = message_line.splitn(2, ':').nth(1).unwrap_or("").trim().to_string();
+                    Ok(GitObject::Commit(Commit { author, message, tree_hash, parent_hashes }))
+                } else if data_str.lines().any(|line| line.starts_with("blob ") || line.starts_with("tree ")) {
+                    let mut entries = HashMap::new();
+                    for line in data_str.lines() {
+                        let parts: Vec<&str> = line.splitn(3, ' ').collect();
+                        if parts.len() == 3 {
+                            let kind = match parts[0] {
+                                "blob" => GitObjectKind::Blob,
+                                "tree" => GitObjectKind::Tree,
+                                _ => continue,
+                            };
+                            entries.insert(parts[2].to_string(), (parts[1].to_string(), kind));
+                        }
                     }
-
-                    Ok(GitObject::Commit(Commit { author, message }))
+                    Ok(GitObject::Tree(entries))
                 } else {
                     Ok(GitObject::Blob(data.clone()))
                 }
@@ -148,11 +179,54 @@ impl GitVfs {
     }
 
     pub fn create_blob(&mut self, data: &[u8]) -> GitVfsResult<String> {
-        // For simplicity, we'll use the length as a placeholder hash for blobs.
-        // In a real Git implementation, this would be a SHA-1 or SHA-256 hash.
         let hash = self.data_sha256(data);
         self.create_object(&hash, data)?;
         Ok(hash)
+    }
+
+    pub fn create_tree(&mut self, entries: HashMap<String, (String, GitObjectKind)>) -> GitVfsResult<String> {
+        let tree_object = GitObject::Tree(entries);
+        let data = tree_object.to_vec();
+        let hash = self.data_sha256(&data);
+        self.create_object(&hash, &data)?;
+        Ok(hash)
+    }
+
+    pub fn get_tree(&self, hash: &str) -> GitVfsResult<HashMap<String, (String, GitObjectKind)>> {
+        match self.get_object(hash)? {
+            GitObject::Tree(entries) => Ok(entries),
+            _ => Err(GitVfsError::InvalidOperation),
+        }
+    }
+
+    pub fn create_commit(&mut self, author: &str, message: &str, tree_hash: &str, parent_hashes: Vec<String>) -> GitVfsResult<String> {
+        // Ensure the tree object exists
+        if let Err(GitVfsError::NotFound) = self.get_object(tree_hash) {
+            return Err(GitVfsError::NotFound);
+        }
+
+        let commit_object = GitObject::Commit(Commit {
+            author: author.to_string(),
+            message: message.to_string(),
+            tree_hash: tree_hash.to_string(),
+            parent_hashes,
+        });
+        let data = commit_object.to_vec();
+        let hash = self.data_sha256(&data);
+        self.create_object(&hash, &data)?;
+        Ok(hash)
+    }
+
+    pub fn list_refs(&self) -> HashMap<String, String> {
+        self.refs.clone()
+    }
+
+    pub fn delete_ref(&mut self, ref_name: &str) -> GitVfsResult<()> {
+        if self.refs.remove(ref_name).is_some() {
+            Ok(())
+        } else {
+            Err(GitVfsError::NotFound)
+        }
     }
 
     pub fn data_sha256(&self, data_to_hash: &[u8]) -> String {
@@ -165,17 +239,19 @@ impl GitVfs {
 
     // --- Added walk_history method ---
     pub fn walk_history(&self, head_hash: &str) -> GitVfsResult<Vec<String>> {
-        // Placeholder implementation: In a real Git, this would traverse commit parents.
-        // For now, we'll just return the head hash itself if it exists as an object.
-        // A real implementation would need to parse commit objects to find parents.
-        if self.objects.contains_key(head_hash) {
-            // For this placeholder, we'll assume the object at head_hash is a commit
-            // and that it has no parents for simplicity.
-            // A more robust mock would involve creating commit objects with parent hashes.
-            Ok(vec![head_hash.to_string()])
-        } else {
-            Err(GitVfsError::NotFound)
+        let mut history = Vec::new();
+        let mut current_hash = Some(head_hash.to_string());
+
+        while let Some(hash) = current_hash {
+            match self.get_object(&hash)? {
+                GitObject::Commit(commit) => {
+                    history.push(hash.clone());
+                    current_hash = commit.parent_hashes.first().cloned(); // Follow the first parent for simplicity
+                },
+                _ => return Err(GitVfsError::InvalidOperation), // Head hash must point to a commit
+            }
         }
+        Ok(history)
     }
     // --- End of added walk_history method ---
 }
