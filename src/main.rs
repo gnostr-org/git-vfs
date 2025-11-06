@@ -13,7 +13,8 @@ fn main() {
     println!("blob_hash: {blob_hash}");
     let blob_content_bytes = match blob_content {
         GitObject::Blob(data) => data,
-        GitObject::Commit(_) => panic!("Expected a blob, but got a commit."), // Or handle appropriately
+        GitObject::Commit(_) => panic!("Expected a blob, but got a commit."),
+        GitObject::Tree(_) => panic!("Expected a blob, but got a tree."),
     };
     println!("blob_content: \"{}\"", String::from_utf8_lossy(&blob_content_bytes));
     println!("blob_sha256: {blob_sha256}");

@@ -129,18 +129,72 @@ async fn main() {
             println!("\n--- Initializing Node 3 and Node 4 after 10 cycles ---");
 
             // Clone Node 1's current state into Node 3
-            let n1_current_obj_hash = node1_vfs.get_ref(main_ref).unwrap(); // Get current head hash
-            let n1_current_obj_data = node1_vfs.get_object(&n1_current_obj_hash).unwrap();
-            node3_vfs.create_object(&n1_current_obj_hash, &n1_current_obj_data.to_vec().as_slice()).unwrap();
-            node3_vfs.create_ref(main_ref, &n1_current_obj_hash).unwrap();
+            let n1_current_commit_hash = node1_vfs.get_ref(main_ref).unwrap(); // Get current head hash
+            let n1_current_commit = match node1_vfs.get_object(&n1_current_commit_hash).unwrap() {
+                git_vfs::GitObject::Commit(c) => c,
+                _ => panic!("Expected commit object"),
+            };
+
+            // Fetch and create tree object
+            let n1_current_tree = match node1_vfs.get_object(&n1_current_commit.tree_hash).unwrap() {
+                git_vfs::GitObject::Tree(t) => t,
+                _ => panic!("Expected tree object"),
+            };
+            node3_vfs.create_tree(n1_current_tree.clone()).unwrap();
+
+            // Fetch and create blob objects
+            for (_, (blob_hash, _)) in n1_current_tree.iter() {
+                let blob_data = match node1_vfs.get_object(blob_hash).unwrap() {
+                    git_vfs::GitObject::Blob(b) => b,
+                    _ => panic!("Expected blob object"),
+                };
+                node3_vfs.create_blob(&blob_data).unwrap();
+            }
+
+            // Create the commit object in Node 3
+            node3_vfs.create_commit(
+                &n1_current_commit.author,
+                &n1_current_commit.message,
+                &n1_current_commit.tree_hash,
+                n1_current_commit.parent_hashes.clone(),
+            ).unwrap();
+
+            node3_vfs.create_ref(main_ref, &n1_current_commit_hash).unwrap();
             node3_vfs.set_head(main_ref).unwrap();
             print_vfs_state(&node3_vfs, "Node 3");
 
             // Clone Node 1's current state into Node 4
-            let n1_current_obj_hash_for_n4 = node1_vfs.get_ref(main_ref).unwrap(); // Re-fetch in case of concurrent changes (though not expected here)
-            let n1_current_obj_data_for_n4 = node1_vfs.get_object(&n1_current_obj_hash_for_n4).unwrap();
-            node4_vfs.create_object(&n1_current_obj_hash_for_n4, &n1_current_obj_data_for_n4.to_vec().as_slice()).unwrap();
-            node4_vfs.create_ref(main_ref, &n1_current_obj_hash_for_n4).unwrap();
+            let n1_current_commit_hash_for_n4 = node1_vfs.get_ref(main_ref).unwrap(); // Re-fetch in case of concurrent changes (though not expected here)
+            let n1_current_commit_for_n4 = match node1_vfs.get_object(&n1_current_commit_hash_for_n4).unwrap() {
+                git_vfs::GitObject::Commit(c) => c,
+                _ => panic!("Expected commit object"),
+            };
+
+            // Fetch and create tree object
+            let n1_current_tree_for_n4 = match node1_vfs.get_object(&n1_current_commit_for_n4.tree_hash).unwrap() {
+                git_vfs::GitObject::Tree(t) => t,
+                _ => panic!("Expected tree object"),
+            };
+            node4_vfs.create_tree(n1_current_tree_for_n4.clone()).unwrap();
+
+            // Fetch and create blob objects
+            for (_, (blob_hash, _)) in n1_current_tree_for_n4.iter() {
+                let blob_data = match node1_vfs.get_object(blob_hash).unwrap() {
+                    git_vfs::GitObject::Blob(b) => b,
+                    _ => panic!("Expected blob object"),
+                };
+                node4_vfs.create_blob(&blob_data).unwrap();
+            }
+
+            // Create the commit object in Node 4
+            node4_vfs.create_commit(
+                &n1_current_commit_for_n4.author,
+                &n1_current_commit_for_n4.message,
+                &n1_current_commit_for_n4.tree_hash,
+                n1_current_commit_for_n4.parent_hashes.clone(),
+            ).unwrap();
+
+            node4_vfs.create_ref(main_ref, &n1_current_commit_hash_for_n4).unwrap();
             node4_vfs.set_head(main_ref).unwrap();
             print_vfs_state(&node4_vfs, "Node 4");
 
