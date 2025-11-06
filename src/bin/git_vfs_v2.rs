@@ -117,6 +117,7 @@ async fn main() {
 #[cfg(test)]
 mod tests {
     use libp2p::{identity, Multiaddr};
+    use libp2p::identity::Keypair;
 
     use super::*;
     use futures::io::Cursor;
