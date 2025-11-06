@@ -2,7 +2,7 @@
 use std::io;
 use futures::{AsyncReadExt, AsyncWriteExt};
 use libp2p::{
-    kad::{store::MemoryStore, QueryId, RecordKey},
+    kad::{store::MemoryStore},
     mdns,
     request_response::{self},
     swarm::{NetworkBehaviour},
@@ -116,7 +116,6 @@ async fn main() {
 
 #[cfg(test)]
 mod tests {
-    use libp2p::{identity, Multiaddr};
     use libp2p::identity::Keypair;
 
     use super::*;
