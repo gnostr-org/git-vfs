@@ -129,12 +129,26 @@ async fn main() {
     }
 
     // Create the commit object in Node 2
-    node2_vfs.create_commit(
+    let node2_new_commit_hash = match node2_vfs.create_commit(
         &node1_head_commit.author,
         &node1_head_commit.message,
         &node1_head_commit.tree_hash,
         node1_head_commit.parent_hashes.clone(),
-    ).unwrap();
+    ) {
+        Ok(hash) => hash,
+        Err(git_vfs::GitVfsError::AlreadyExists) => {
+            // If it already exists, we need to retrieve its hash.
+            // Re-calculate the hash based on the content, assuming it's consistent.
+            let commit_object = git_vfs::GitObject::Commit(git_vfs::Commit {
+                author: node1_head_commit.author.clone(),
+                message: node1_head_commit.message.clone(),
+                tree_hash: node1_head_commit.tree_hash.clone(),
+                parent_hashes: node1_head_commit.parent_hashes.clone(),
+            });
+            node2_vfs.data_sha256(&commit_object.to_vec())
+        },
+        Err(e) => panic!("Failed to create commit: {:?}", e),
+    };
 
     node2_vfs.create_ref(main_ref, &node1_head_commit_hash).unwrap();
     node2_vfs.set_head(main_ref).unwrap();
@@ -179,12 +193,26 @@ async fn main() {
             }
 
             // Create the commit object in Node 3
-            node3_vfs.create_commit(
+            let node3_new_commit_hash = match node3_vfs.create_commit(
                 &n1_current_commit.author,
                 &n1_current_commit.message,
                 &n1_current_commit.tree_hash,
                 n1_current_commit.parent_hashes.clone(),
-            ).unwrap();
+            ) {
+                Ok(hash) => hash,
+                Err(git_vfs::GitVfsError::AlreadyExists) => {
+                    // If it already exists, we need to retrieve its hash.
+                    // Re-calculate the hash based on the content, assuming it's consistent.
+                    let commit_object = git_vfs::GitObject::Commit(git_vfs::Commit {
+                        author: n1_current_commit.author.clone(),
+                        message: n1_current_commit.message.clone(),
+                        tree_hash: n1_current_commit.tree_hash.clone(),
+                        parent_hashes: n1_current_commit.parent_hashes.clone(),
+                    });
+                    node3_vfs.data_sha256(&commit_object.to_vec())
+                },
+                Err(e) => panic!("Failed to create commit: {:?}", e),
+            };
 
             node3_vfs.create_ref(main_ref, &n1_current_commit_hash).unwrap();
             node3_vfs.set_head(main_ref).unwrap();
@@ -214,12 +242,26 @@ async fn main() {
             }
 
             // Create the commit object in Node 4
-            node4_vfs.create_commit(
+            let node4_new_commit_hash = match node4_vfs.create_commit(
                 &n1_current_commit_for_n4.author,
                 &n1_current_commit_for_n4.message,
                 &n1_current_commit_for_n4.tree_hash,
                 n1_current_commit_for_n4.parent_hashes.clone(),
-            ).unwrap();
+            ) {
+                Ok(hash) => hash,
+                Err(git_vfs::GitVfsError::AlreadyExists) => {
+                    // If it already exists, we need to retrieve its hash.
+                    // Re-calculate the hash based on the content, assuming it's consistent.
+                    let commit_object = git_vfs::GitObject::Commit(git_vfs::Commit {
+                        author: n1_current_commit_for_n4.author.clone(),
+                        message: n1_current_commit_for_n4.message.clone(),
+                        tree_hash: n1_current_commit_for_n4.tree_hash.clone(),
+                        parent_hashes: n1_current_commit_for_n4.parent_hashes.clone(),
+                    });
+                    node4_vfs.data_sha256(&commit_object.to_vec())
+                },
+                Err(e) => panic!("Failed to create commit: {:?}", e),
+            };
 
             node4_vfs.create_ref(main_ref, &n1_current_commit_hash_for_n4).unwrap();
             node4_vfs.set_head(main_ref).unwrap();
@@ -244,12 +286,26 @@ async fn main() {
         node1_new_tree_entries.insert(format!("file{}.txt", commit_counter), (node1_blob_hash.clone(), git_vfs::GitObjectKind::Blob));
         let node1_new_tree_hash = node1_vfs.create_tree(node1_new_tree_entries).unwrap();
 
-        let node1_new_commit_hash = node1_vfs.create_commit(
+        let node1_new_commit_hash = match node1_vfs.create_commit(
             "Node 1 Author",
             &node1_content,
             &node1_new_tree_hash,
             vec![node1_prev_commit_hash.clone()],
-        ).unwrap();
+        ) {
+            Ok(hash) => hash,
+            Err(git_vfs::GitVfsError::AlreadyExists) => {
+                // If it already exists, we need to retrieve its hash.
+                // Re-calculate the hash based on the content, assuming it's consistent.
+                let commit_object = git_vfs::GitObject::Commit(git_vfs::Commit {
+                    author: "Node 1 Author".to_string(),
+                    message: node1_content.clone(),
+                    tree_hash: node1_new_tree_hash.clone(),
+                    parent_hashes: vec![node1_prev_commit_hash.clone()],
+                });
+                node1_vfs.data_sha256(&commit_object.to_vec())
+            },
+            Err(e) => panic!("Failed to create commit: {:?}", e),
+        };
         node1_vfs.update_ref(main_ref, &node1_new_commit_hash).unwrap();
         println!("Node 1 created new commit.");
         print_vfs_state(&node1_vfs, "Node 1");
@@ -269,12 +325,26 @@ async fn main() {
         node2_new_tree_entries.insert(format!("file{}.txt", commit_counter), (node2_blob_hash.clone(), git_vfs::GitObjectKind::Blob));
         let node2_new_tree_hash = node2_vfs.create_tree(node2_new_tree_entries).unwrap();
 
-        let node2_new_commit_hash = node2_vfs.create_commit(
+        let node2_new_commit_hash = match node2_vfs.create_commit(
             "Node 2 Author",
             &node2_content,
             &node2_new_tree_hash,
             vec![node2_prev_commit_hash.clone()],
-        ).unwrap();
+        ) {
+            Ok(hash) => hash,
+            Err(git_vfs::GitVfsError::AlreadyExists) => {
+                // If it already exists, we need to retrieve its hash.
+                // Re-calculate the hash based on the content, assuming it's consistent.
+                let commit_object = git_vfs::GitObject::Commit(git_vfs::Commit {
+                    author: "Node 2 Author".to_string(),
+                    message: node2_content.clone(),
+                    tree_hash: node2_new_tree_hash.clone(),
+                    parent_hashes: vec![node2_prev_commit_hash.clone()],
+                });
+                node2_vfs.data_sha256(&commit_object.to_vec())
+            },
+            Err(e) => panic!("Failed to create commit: {:?}", e),
+        };
         node2_vfs.update_ref(main_ref, &node2_new_commit_hash).unwrap();
         println!("Node 2 created new commit.");
         print_vfs_state(&node2_vfs, "Node 2");
@@ -295,12 +365,26 @@ async fn main() {
             node3_new_tree_entries.insert(format!("file{}.txt", commit_counter), (node3_blob_hash.clone(), git_vfs::GitObjectKind::Blob));
             let node3_new_tree_hash = node3_vfs.create_tree(node3_new_tree_entries).unwrap();
 
-            let node3_new_commit_hash = node3_vfs.create_commit(
+            let node3_new_commit_hash = match node3_vfs.create_commit(
                 "Node 3 Author",
                 &node3_content,
                 &node3_new_tree_hash,
                 vec![node3_prev_commit_hash.clone()],
-            ).unwrap();
+            ) {
+                Ok(hash) => hash,
+                Err(git_vfs::GitVfsError::AlreadyExists) => {
+                    // If it already exists, we need to retrieve its hash.
+                    // Re-calculate the hash based on the content, assuming it's consistent.
+                    let commit_object = git_vfs::GitObject::Commit(git_vfs::Commit {
+                        author: "Node 3 Author".to_string(),
+                        message: node3_content.clone(),
+                        tree_hash: node3_new_tree_hash.clone(),
+                        parent_hashes: vec![node3_prev_commit_hash.clone()],
+                    });
+                    node3_vfs.data_sha256(&commit_object.to_vec())
+                },
+                Err(e) => panic!("Failed to create commit: {:?}", e),
+            };
             node3_vfs.update_ref(main_ref, &node3_new_commit_hash).unwrap();
             println!("Node 3 created new commit.");
             print_vfs_state(&node3_vfs, "Node 3");
@@ -322,12 +406,26 @@ async fn main() {
             node4_new_tree_entries.insert(format!("file{}.txt", commit_counter), (node4_blob_hash.clone(), git_vfs::GitObjectKind::Blob));
             let node4_new_tree_hash = node4_vfs.create_tree(node4_new_tree_entries).unwrap();
 
-            let node4_new_commit_hash = node4_vfs.create_commit(
+            let node4_new_commit_hash = match node4_vfs.create_commit(
                 "Node 4 Author",
                 &node4_content,
                 &node4_new_tree_hash,
                 vec![node4_prev_commit_hash.clone()],
-            ).unwrap();
+            ) {
+                Ok(hash) => hash,
+                Err(git_vfs::GitVfsError::AlreadyExists) => {
+                    // If it already exists, we need to retrieve its hash.
+                    // Re-calculate the hash based on the content, assuming it's consistent.
+                    let commit_object = git_vfs::GitObject::Commit(git_vfs::Commit {
+                        author: "Node 4 Author".to_string(),
+                        message: node4_content.clone(),
+                        tree_hash: node4_new_tree_hash.clone(),
+                        parent_hashes: vec![node4_prev_commit_hash.clone()],
+                    });
+                    node4_vfs.data_sha256(&commit_object.to_vec())
+                },
+                Err(e) => panic!("Failed to create commit: {:?}", e),
+            };
             node4_vfs.update_ref(main_ref, &node4_new_commit_hash).unwrap();
             println!("Node 4 created new commit.");
             print_vfs_state(&node4_vfs, "Node 4");
@@ -363,12 +461,26 @@ async fn main() {
         }
 
         // Create the commit object in Node 2
-        node2_vfs.create_commit(
+        let node2_sync_commit_hash = match node2_vfs.create_commit(
             &node1_latest_commit.author,
             &node1_latest_commit.message,
             &node1_latest_commit.tree_hash,
             node1_latest_commit.parent_hashes.clone(),
-        ).unwrap();
+        ) {
+            Ok(hash) => hash,
+            Err(git_vfs::GitVfsError::AlreadyExists) => {
+                // If it already exists, we need to retrieve its hash.
+                // Re-calculate the hash based on the content, assuming it's consistent.
+                let commit_object = git_vfs::GitObject::Commit(git_vfs::Commit {
+                    author: node1_latest_commit.author.clone(),
+                    message: node1_latest_commit.message.clone(),
+                    tree_hash: node1_latest_commit.tree_hash.clone(),
+                    parent_hashes: node1_latest_commit.parent_hashes.clone(),
+                });
+                node2_vfs.data_sha256(&commit_object.to_vec())
+            },
+            Err(e) => panic!("Failed to create commit: {:?}", e),
+        };
 
         node2_vfs.update_ref(main_ref, &node1_latest_commit_hash).unwrap();
         println!("Node 2 synced from Node 1.");
