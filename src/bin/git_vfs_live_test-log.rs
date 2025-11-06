@@ -1,4 +1,3 @@
-
 // --- IMPORTS ---
 use git_vfs::GitVfs;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -24,10 +23,47 @@ fn print_vfs_state(vfs: &GitVfs, node_name: &str) {
     println!("---------------------");
 }
 
+// Helper function to print git log for a given branch
+fn print_git_log(vfs: &GitVfs, node_name: &str, branch_name: &str) {
+    println!("--- {} Git Log ({}) ---", node_name, branch_name);
+    match vfs.get_ref(branch_name) {
+        Ok(head_hash) => {
+            match vfs.walk_history(&head_hash) {
+                Ok(hashes) => {
+                    if hashes.is_empty() {
+                        println!("  (No commits)");
+                    } else {
+                        for hash in hashes {
+                            match vfs.read_object(&hash) {
+                                Ok(git_vfs::GitObject::Commit(commit)) => {
+                                    // Format: commit <hash>\nAuthor: <author>\n\n    <message>\n
+                                    println!("commit {}", hash);
+                                    println!("Author: {}", commit.author);
+                                    // Indent message lines
+                                    for line in commit.message.lines() {
+                                        println!("    {}", line);
+                                    }
+                                    println!(); // Blank line between commits
+                                }
+                                Ok(_) => println!("  (Non-commit object at hash: {})", hash),
+                                Err(e) => println!("  Error reading object {}: {:?}", hash, e),
+                            }
+                        }
+                    }
+                }
+                Err(e) => println!("  Error walking history for {}: {:?}", branch_name, e),
+            }
+        }
+        Err(git_vfs::GitVfsError::NotFound) => println!("  Branch '{}' not found.", branch_name),
+        Err(e) => println!("  Error getting ref for {}: {:?}", branch_name, e),
+    }
+    println!("--------------------------");
+}
+
+
 // --- MAIN TEST FUNCTION ---
 
-#[tokio::main]
-async fn main() {
+#[tokio::main] async fn main() {
     println!("--- Git VFS Live Test: 2-Node Continuous Git History Exchange ---");
     println!("Press Ctrl-C or type 'q' and press Enter to stop.");
 
@@ -70,6 +106,7 @@ async fn main() {
     node1_vfs.create_ref(main_ref, &initial_hash).unwrap();
     node1_vfs.set_head(main_ref).unwrap();
     print_vfs_state(&node1_vfs, "Node 1");
+    print_git_log(&node1_vfs, "Node 1", main_ref); // Log after initial commit
 
     println!("\n--- Cloning Node 1's state to Node 2 ---");
     let obj_data = node1_vfs.get_object(&initial_hash).unwrap();
@@ -77,6 +114,7 @@ async fn main() {
     node2_vfs.create_ref(main_ref, &initial_hash).unwrap();
     node2_vfs.set_head(main_ref).unwrap();
     print_vfs_state(&node2_vfs, "Node 2");
+    print_git_log(&node2_vfs, "Node 2", main_ref); // Log after cloning
 
     let mut commit_counter = 1;
     let mut new_nodes_initialized = false; // Flag to track initialization of new nodes
@@ -96,6 +134,7 @@ async fn main() {
             node3_vfs.create_ref(main_ref, &n1_current_obj_hash).unwrap();
             node3_vfs.set_head(main_ref).unwrap();
             print_vfs_state(&node3_vfs, "Node 3");
+            print_git_log(&node3_vfs, "Node 3", main_ref); // Log after initialization
 
             // Clone Node 1's current state into Node 4
             let n1_current_obj_hash_for_n4 = node1_vfs.get_ref(main_ref).unwrap(); // Re-fetch in case of concurrent changes (though not expected here)
@@ -104,6 +143,7 @@ async fn main() {
             node4_vfs.create_ref(main_ref, &n1_current_obj_hash_for_n4).unwrap();
             node4_vfs.set_head(main_ref).unwrap();
             print_vfs_state(&node4_vfs, "Node 4");
+            print_git_log(&node4_vfs, "Node 4", main_ref); // Log after initialization
 
             new_nodes_initialized = true;
             println!("--- New nodes (Node 3 and Node 4) initialized and cloned from Node 1 ---");
@@ -179,6 +219,15 @@ async fn main() {
         if new_nodes_initialized {
             print_vfs_state(&node3_vfs, "Node 3 (Final)");
             print_vfs_state(&node4_vfs, "Node 4 (Final)");
+        }
+
+        // --- Print Git Log for each node ---
+        println!("\n--- Git Log after sync cycle {} ---", commit_counter);
+        print_git_log(&node1_vfs, "Node 1", main_ref);
+        print_git_log(&node2_vfs, "Node 2", main_ref);
+        if new_nodes_initialized {
+            print_git_log(&node3_vfs, "Node 3", main_ref);
+            print_git_log(&node4_vfs, "Node 4", main_ref);
         }
 
 
