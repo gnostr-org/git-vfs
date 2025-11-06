@@ -34,7 +34,7 @@ fn print_git_log(vfs: &GitVfs, node_name: &str, branch_name: &str) {
                         println!("  (No commits)");
                     } else {
                         for hash in hashes {
-                            match vfs.read_object(&hash) {
+                            match vfs.get_object(&hash) {
                                 Ok(git_vfs::GitObject::Commit(commit)) => {
                                     // Format: commit <hash>\nAuthor: <author>\n\n    <message>\n
                                     println!("commit {}", hash);

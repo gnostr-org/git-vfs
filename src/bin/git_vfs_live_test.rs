@@ -71,7 +71,17 @@ async fn main() {
 
     println!("\n--- Cloning Node 1's state to Node 2 ---");
     let obj_data = node1_vfs.get_object(&initial_hash).unwrap();
-    node2_vfs.create_object(&initial_hash, &obj_data).unwrap();
+    let raw_data_for_create_object = match obj_data {
+        GitObject::Blob(data) => data.clone(),
+        GitObject::Commit(commit) => {
+            format!(
+                "mock_commit_author:{}\nmock_commit_message:{}",
+                commit.author, commit.message
+            )
+            .into_bytes()
+        }
+    };
+    node2_vfs.create_object(&initial_hash, &raw_data_for_create_object).unwrap();
     node2_vfs.create_ref(main_ref, &initial_hash).unwrap();
     node2_vfs.set_head(main_ref).unwrap();
     print_vfs_state(&node2_vfs, "Node 2");

@@ -11,10 +11,11 @@ fn main() {
 
     let blob_content = git_vfs.get_object(&blob_hash).expect("Failed to get blob");
     println!("blob_hash: {blob_hash}");
-    println!(
-        "blob_content: \"{}\"",
-        String::from_utf8_lossy(&blob_content)
-    );
+    let blob_content_bytes = match blob_content {
+        GitObject::Blob(data) => data,
+        GitObject::Commit(_) => panic!("Expected a blob, but got a commit."), // Or handle appropriately
+    };
+    println!("blob_content: \"{}\"", String::from_utf8_lossy(&blob_content_bytes));
     println!("blob_sha256: {blob_sha256}");
 
     git_vfs

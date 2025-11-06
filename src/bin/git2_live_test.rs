@@ -64,9 +64,19 @@ async fn main() {
 
     // Simulate fetching the object for the main branch hash
     let object_data = node1_vfs.get_object(&node1_main_hash).expect("Node 1: Failed to get object");
+    let raw_data_for_create_object = match object_data {
+        GitObject::Blob(data) => data.clone(),
+        GitObject::Commit(commit) => {
+            format!(
+                "mock_commit_author:{}\nmock_commit_message:{}",
+                commit.author, commit.message
+            )
+            .into_bytes()
+        }
+    };
 
     // Node 2 creates the object and ref
-    node2_vfs.create_object(&node1_main_hash, &object_data).expect("Node 2: Failed to create object");
+    node2_vfs.create_object(&node1_main_hash, &raw_data_for_create_object).expect("Node 2: Failed to create object");
     node2_vfs.create_ref(main_ref, &node1_main_hash).expect("Node 2: Failed to create main ref");
     node2_vfs.set_head(main_ref).expect("Node 2: Failed to set HEAD");
 
