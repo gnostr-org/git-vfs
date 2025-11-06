@@ -517,14 +517,24 @@ async fn main() {
         }
 
         // Create the commit object in Node 1
-        match node1_vfs.create_commit(
+        let node1_sync_commit_hash = match node1_vfs.create_commit(
             &node2_latest_commit.author,
             &node2_latest_commit.message,
             &node2_latest_commit.tree_hash,
             node2_latest_commit.parent_hashes.clone(),
         ) {
-            Ok(_) => {},
-            Err(git_vfs::GitVfsError::AlreadyExists) => {},
+            Ok(hash) => hash, // Assign hash if Ok
+            Err(git_vfs::GitVfsError::AlreadyExists) => {
+                // If it already exists, we need to retrieve its hash.
+                // Re-calculate the hash based on the content, assuming it's consistent.
+                let commit_object = git_vfs::GitObject::Commit(git_vfs::Commit {
+                    author: node2_latest_commit.author.clone(),
+                    message: node2_latest_commit.message.clone(),
+                    tree_hash: node2_latest_commit.tree_hash.clone(),
+                    parent_hashes: node2_latest_commit.parent_hashes.clone(),
+                });
+                node1_vfs.data_sha256(&commit_object.to_vec())
+            },
             Err(e) => panic!("Failed to create commit: {:?}", e),
         };
         println!("Node 1 synced from Node 2 (object only).");
@@ -554,12 +564,26 @@ async fn main() {
             }
 
             // Create the commit object in Node 3
-            node3_vfs.create_commit(
+            let node3_sync_commit_hash = match node3_vfs.create_commit(
                 &node1_latest_commit.author,
                 &node1_latest_commit.message,
                 &node1_latest_commit.tree_hash,
                 node1_latest_commit.parent_hashes.clone(),
-            ).unwrap();
+            ) {
+                Ok(hash) => hash,
+                Err(git_vfs::GitVfsError::AlreadyExists) => {
+                    // If it already exists, we need to retrieve its hash.
+                    // Re-calculate the hash based on the content, assuming it's consistent.
+                    let commit_object = git_vfs::GitObject::Commit(git_vfs::Commit {
+                        author: node1_latest_commit.author.clone(),
+                        message: node1_latest_commit.message.clone(),
+                        tree_hash: node1_latest_commit.tree_hash.clone(),
+                        parent_hashes: node1_latest_commit.parent_hashes.clone(),
+                    });
+                    node3_vfs.data_sha256(&commit_object.to_vec())
+                },
+                Err(e) => panic!("Failed to create commit: {:?}", e),
+            };
 
             node3_vfs.update_ref(main_ref, &node1_latest_commit_hash).unwrap(); // Node 3 updates to Node 1's latest
             println!("Node 3 synced from Node 1.");
@@ -590,12 +614,26 @@ async fn main() {
             }
 
             // Create the commit object in Node 4
-            node4_vfs.create_commit(
+            let node4_sync_commit_hash = match node4_vfs.create_commit(
                 &node2_latest_commit.author,
                 &node2_latest_commit.message,
                 &node2_latest_commit.tree_hash,
                 node2_latest_commit.parent_hashes.clone(),
-            ).unwrap();
+            ) {
+                Ok(hash) => hash,
+                Err(git_vfs::GitVfsError::AlreadyExists) => {
+                    // If it already exists, we need to retrieve its hash.
+                    // Re-calculate the hash based on the content, assuming it's consistent.
+                    let commit_object = git_vfs::GitObject::Commit(git_vfs::Commit {
+                        author: node2_latest_commit.author.clone(),
+                        message: node2_latest_commit.message.clone(),
+                        tree_hash: node2_latest_commit.tree_hash.clone(),
+                        parent_hashes: node2_latest_commit.parent_hashes.clone(),
+                    });
+                    node4_vfs.data_sha256(&commit_object.to_vec())
+                },
+                Err(e) => panic!("Failed to create commit: {:?}", e),
+            };
 
             node4_vfs.update_ref(main_ref, &node2_latest_commit_hash).unwrap(); // Node 4 updates to Node 2's latest
             println!("Node 4 synced from Node 2.");
