@@ -711,6 +711,7 @@ mock_commit_message:New content from server";
                 format!("mock_commit_author:{}\nmock_commit_message:{}", c.author, c.message).into_bytes()
             },
             GitObject::Blob(d) => d,
+            GitObject::Tree(t) => t.to_vec(),
         };
         vfs_client.create_object(&new_blob_hash_server, &raw_data_to_store_new).expect("Client: Failed to create new object");
         println!("Client: Created new object for hash {}", new_blob_hash_server);
