@@ -129,7 +129,7 @@ async fn main() {
     }
 
     // Create the commit object in Node 2
-    let node2_new_commit_hash = match node2_vfs.create_commit(
+    let _node2_new_commit_hash = match node2_vfs.create_commit(
         &node1_head_commit.author,
         &node1_head_commit.message,
         &node1_head_commit.tree_hash,
@@ -193,12 +193,12 @@ async fn main() {
             }
 
             // Create the commit object in Node 3
-            let node3_new_commit_hash = match node3_vfs.create_commit(
-                &n1_current_commit.author,
-                &n1_current_commit.message,
-                &n1_current_commit.tree_hash,
-                n1_current_commit.parent_hashes.clone(),
-            ) {
+                let _node3_new_commit_hash = match node3_vfs.create_commit(
+                    &n1_current_commit.author,
+                    &n1_current_commit.message, /* Added missing message argument */
+                    &n1_current_commit.tree_hash,
+                    n1_current_commit.parent_hashes.clone(),
+                ) {
                 Ok(hash) => hash,
                 Err(git_vfs::GitVfsError::AlreadyExists) => {
                     // If it already exists, we need to retrieve its hash.
@@ -242,7 +242,7 @@ async fn main() {
             }
 
             // Create the commit object in Node 4
-            let node4_new_commit_hash = match node4_vfs.create_commit(
+            let _node4_new_commit_hash = match node4_vfs.create_commit(
                 &n1_current_commit_for_n4.author,
                 &n1_current_commit_for_n4.message,
                 &n1_current_commit_for_n4.tree_hash,
@@ -461,7 +461,7 @@ async fn main() {
         }
 
         // Create the commit object in Node 2
-        let node2_sync_commit_hash = match node2_vfs.create_commit(
+        let _node2_sync_commit_hash = match node2_vfs.create_commit(
             &node1_latest_commit.author,
             &node1_latest_commit.message,
             &node1_latest_commit.tree_hash,
@@ -517,7 +517,7 @@ async fn main() {
         }
 
         // Create the commit object in Node 1
-        let node1_sync_commit_hash = match node1_vfs.create_commit(
+        let _node1_sync_commit_hash = match node1_vfs.create_commit(
             &node2_latest_commit.author,
             &node2_latest_commit.message,
             &node2_latest_commit.tree_hash,
@@ -564,7 +564,7 @@ async fn main() {
             }
 
             // Create the commit object in Node 3
-            let node3_sync_commit_hash = match node3_vfs.create_commit(
+            let _node3_sync_commit_hash = match node3_vfs.create_commit(
                 &node1_latest_commit.author,
                 &node1_latest_commit.message,
                 &node1_latest_commit.tree_hash,
@@ -614,7 +614,7 @@ async fn main() {
             }
 
             // Create the commit object in Node 4
-            let node4_sync_commit_hash = match node4_vfs.create_commit(
+            let _node4_sync_commit_hash = match node4_vfs.create_commit(
                 &node2_latest_commit.author,
                 &node2_latest_commit.message,
                 &node2_latest_commit.tree_hash,
