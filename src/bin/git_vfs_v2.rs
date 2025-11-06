@@ -37,16 +37,14 @@ impl libp2p::request_response::Codec for GitVfsProtocol {
         String::from_utf8(buf).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
     }
 
-    fn read_response<TRs: AsyncReadExt + Unpin + Send>(
+    async fn read_response<TRs: AsyncReadExt + Unpin + Send>(
         &mut self,
         _protocol: &Self::Protocol,
         io: &mut TRs,
-    ) -> futures::future::BoxFuture<'_, io::Result<Self::Response>> {
-        Box::pin(async move {
-            let mut buf = Vec::new();
-            io.read_to_end(&mut buf).await?;
-            Ok(buf)
-        })
+    ) -> io::Result<Self::Response> {
+        let mut buf = Vec::new();
+        io.read_to_end(&mut buf).await?;
+        Ok(buf)
     }
 
     async fn write_request<TWs: AsyncWriteExt + Unpin + Send>(
