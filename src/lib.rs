@@ -1,15 +1,9 @@
 use futures::{AsyncReadExt, AsyncWriteExt};
-use libp2p::{
-    StreamProtocol,
-    identify::Behaviour as IdentifyBehaviour,
-    kad::{Behaviour as Kademlia, Event as KademliaEvent, store::MemoryStore},
-    mdns,
-    request_response::{self},
-    swarm::NetworkBehaviour,
-};
+use libp2p::{StreamProtocol, identify::Behaviour as IdentifyBehaviour, kad::{Behaviour as Kademlia, Event as KademliaEvent, store::MemoryStore}, mdns, request_response::{self}, swarm::NetworkBehaviour,};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::io;
+use vfs::{VfsError, error::VfsErrorKind};
 
 pub mod altroot_vfs;
 pub mod memory_vfs;
@@ -33,12 +27,15 @@ impl From<git2::Error> for GitVfsError {
     }
 }
 
-impl From<GitVfsError> for vfs::VfsError {
+impl From<GitVfsError> for VfsError {
     fn from(err: GitVfsError) -> Self {
         match err {
-            GitVfsError::NotFound => vfs::VfsError::FileNotFound,
-            GitVfsError::AlreadyExists => vfs::VfsError::FileExists,
-            GitVfsError::InvalidOperation => vfs::VfsError::Other(Box::new(err)),
+            GitVfsError::NotFound => VfsErrorKind::FileNotFound.into(),
+            GitVfsError::AlreadyExists => VfsErrorKind::AlreadyExists.into(),
+            GitVfsError::InvalidOperation => {
+                VfsErrorKind::Other.into_error("Invalid Git operation")
+                    .with_source(Box::new(err))
+            }
         }
     }
 }
