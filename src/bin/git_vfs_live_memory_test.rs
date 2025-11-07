@@ -1,5 +1,6 @@
 // --- IMPORTS ---
 use git_vfs::GitVfs;
+use git_vfs::memory_vfs;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
@@ -61,6 +62,14 @@ async fn main() {
     let mut node1_vfs = GitVfs::new();
     let mut node2_vfs = GitVfs::new();
     let main_ref = "refs/heads/main";
+
+    // --- Test Memory VFS functionality ---
+    println!("\n--- Testing Memory VFS ---");
+    match memory_vfs::create_and_test_memory_fs() {
+        Ok(_) => println!("Memory VFS test passed."),
+        Err(e) => eprintln!("Memory VFS test failed: {:?}", e),
+    }
+    println!("--------------------------");
 
     // --- INITIAL COMMIT ON NODE 1 and SYNC to NODE 2 ---
     println!("\n--- Initializing Node 1 with first commit ---");
