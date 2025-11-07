@@ -126,6 +126,13 @@ impl GitVfs {
         Ok(())
     }
 
+    pub fn remove_ref(&mut self, ref_name: &str) -> GitVfsResult<String> {
+        match self.refs.remove(ref_name) {
+            Some(hash) => Ok(hash),
+            None => Err(GitVfsError::NotFound),
+        }
+    }
+
     pub fn set_head(&mut self, ref_name: &str) -> GitVfsResult<()> {
         if !self.refs.contains_key(ref_name) {
             return Err(GitVfsError::NotFound);
