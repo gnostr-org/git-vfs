@@ -609,7 +609,7 @@ mod tests {
         assert!(diff_c2c.refs_updated.is_empty());
 
         // Case 3: Added references
-        let mut vfs1_c3 = GitVfs::new();
+        let vfs1_c3 = GitVfs::new();
         let mut vfs2_c3 = GitVfs::new();
         vfs2_c3.create_ref("refs/heads/dev", "hash_dev").unwrap();
         let diff_c3 = vfs1_c3.diff(&vfs2_c3);
