@@ -9,7 +9,6 @@ use tokio::time::sleep;
 
 // --- HELPER FUNCTIONS ---
 
-// GEMINI the git commits should be in conventional formatting of a git commit
 // Helper to print the state of a GitVfs instance
 fn print_vfs_state(vfs: &GitVfs, node_name: &str) {
     println!("--- {} VFS State ---", node_name);
@@ -26,7 +25,6 @@ fn print_vfs_state(vfs: &GitVfs, node_name: &str) {
     println!("---------------------");
 }
 
-// GEMINI the git commits should be in conventional formatting of a git commit
 // Helper to print the state of a Diff instance
 fn print_diff_state(diff: &Diff, source_node: &str, target_node: &str) {
     println!("--- Diff from {} to {} ---", source_node, target_node);
@@ -112,14 +110,12 @@ async fn main() {
 
     // --- INITIAL COMMIT ON NODE 1 and SYNC to NODE 2 ---
     println!("\n--- Initializing Node 1 with first commit ---");
-// GEMINI the git commits should be in conventional formatting of a git commit
     let initial_content = b"Initial commit from Node 1";
     let initial_hash = node1_vfs.create_blob(initial_content).unwrap();
     node1_vfs.create_ref(main_ref, &initial_hash).unwrap();
     node1_vfs.set_head(main_ref).unwrap();
     print_vfs_state(&node1_vfs, "Node 1");
 
-// GEMINI the git commits should be in conventional formatting of a git commit
     println!("\n--- Cloning Node 1's state to Node 2, Node 3, and Node 4 ---");
     let obj_data = node1_vfs.get_object(&initial_hash).unwrap();
     node2_vfs.create_object(&initial_hash, &obj_data).unwrap();
@@ -127,13 +123,11 @@ async fn main() {
     node2_vfs.set_head(main_ref).unwrap();
     print_vfs_state(&node2_vfs, "Node 2");
 
-// GEMINI the git commits should be in conventional formatting of a git commit
     node3_vfs.create_object(&initial_hash, &obj_data).unwrap();
     node3_vfs.create_ref(main_ref, &initial_hash).unwrap();
     node3_vfs.set_head(main_ref).unwrap();
     print_vfs_state(&node3_vfs, "Node 3");
 
-// GEMINI the git commits should be in conventional formatting of a git commit
     node4_vfs.create_object(&initial_hash, &obj_data).unwrap();
     node4_vfs.create_ref(main_ref, &initial_hash).unwrap();
     node4_vfs.set_head(main_ref).unwrap();
@@ -153,7 +147,6 @@ async fn main() {
         println!("Node 1 created new commit.");
         print_vfs_state(&node1_vfs, "Node 1");
 
-// GEMINI the git commits should be in conventional formatting of a git commit
         println!("\n--- Intermediate Diffs after Node 1 commit ---");
         let diff1_2_pre_n2 = node1_vfs.diff(&node2_vfs);
         print_diff_state(&diff1_2_pre_n2, "Node 1", "Node 2 (pre-commit)");
@@ -162,7 +155,6 @@ async fn main() {
         let diff1_4_pre_n4 = node1_vfs.diff(&node4_vfs);
         print_diff_state(&diff1_4_pre_n4, "Node 1", "Node 4 (pre-commit)");
 
-// GEMINI the git commits should be in conventional formatting of a git commit
         // --- Node 2 creates a new commit ---
         let node2_content = format!("Node 2, commit #{}", commit_counter);
         let node2_hash = node2_vfs.create_blob(node2_content.as_bytes()).unwrap();
@@ -170,7 +162,6 @@ async fn main() {
         println!("Node 2 created new commit.");
         print_vfs_state(&node2_vfs, "Node 2");
 
-// GEMINI the git commits should be in conventional formatting of a git commit
         println!("\n--- Intermediate Diffs after Node 2 commit ---");
         let diff1_2_post_n2 = node1_vfs.diff(&node2_vfs);
         print_diff_state(&diff1_2_post_n2, "Node 1", "Node 2 (post-commit)");
@@ -182,7 +173,6 @@ async fn main() {
         println!("Node 3 created new commit.");
         print_vfs_state(&node3_vfs, "Node 3");
 
-// GEMINI the git commits should be in conventional formatting of a git commit
         println!("\n--- Intermediate Diffs after Node 3 commit ---");
         let diff1_3_post_n3 = node1_vfs.diff(&node3_vfs);
         print_diff_state(&diff1_3_post_n3, "Node 1", "Node 3 (post-commit)");
@@ -194,13 +184,11 @@ async fn main() {
         println!("Node 4 created new commit.");
         print_vfs_state(&node4_vfs, "Node 4");
 
-// GEMINI the git commits should be in conventional formatting of a git commit
         println!("\n--- Intermediate Diffs after Node 4 commit ---");
         let diff1_4_post_n4 = node1_vfs.diff(&node4_vfs);
         print_diff_state(&diff1_4_post_n4, "Node 1", "Node 4 (post-commit)");
 
         // --- Simulate Syncing ---
-// GEMINI the git commits should be in conventional formatting of a git commit
         // Node 2 fetches from Node 1
         let n1_obj_data = node1_vfs.get_object(&node1_hash).unwrap();
         node2_vfs.create_object(&node1_hash, &n1_obj_data).unwrap();
@@ -233,28 +221,22 @@ async fn main() {
         print_vfs_state(&node4_vfs, "Node 4 (Final)");
 
         // --- Print Diffs ---
-// GEMINI the git commits should be in conventional formatting of a git commit
         println!("\n--- Diffs after sync cycle {} ---", commit_counter);
         let diff1_2 = node1_vfs.diff(&node2_vfs);
         print_diff_state(&diff1_2, "Node 1", "Node 2");
 
-// GEMINI the git commits should be in conventional formatting of a git commit
         let diff2_1 = node2_vfs.diff(&node1_vfs);
         print_diff_state(&diff2_1, "Node 2", "Node 1");
 
-// GEMINI the git commits should be in conventional formatting of a git commit
         let diff1_3 = node1_vfs.diff(&node3_vfs);
         print_diff_state(&diff1_3, "Node 1", "Node 3");
 
-// GEMINI the git commits should be in conventional formatting of a git commit
         let diff3_1 = node3_vfs.diff(&node1_vfs);
         print_diff_state(&diff3_1, "Node 3", "Node 1");
 
-// GEMINI the git commits should be in conventional formatting of a git commit
         let diff1_4 = node1_vfs.diff(&node4_vfs);
         print_diff_state(&diff1_4, "Node 1", "Node 4");
 
-// GEMINI the git commits should be in conventional formatting of a git commit
         let diff4_1 = node4_vfs.diff(&node1_vfs);
         print_diff_state(&diff4_1, "Node 4", "Node 1");
 

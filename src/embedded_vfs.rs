@@ -1,8 +1,8 @@
 use rust_embed::RustEmbed;
-use vfs::{EmbeddedFS, VfsPath, VfsResult};
 use std::fs;
 use std::path::Path;
 use tempfile::TempDir;
+use vfs::{EmbeddedFS, VfsPath, VfsResult};
 
 #[derive(RustEmbed, Debug)]
 #[folder = "$CARGO_MANIFEST_DIR/src/empty/.git"]

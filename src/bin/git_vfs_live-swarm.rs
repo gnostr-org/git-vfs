@@ -1,13 +1,13 @@
 // --- IMPORTS ---
-use git_vfs::{GitVfs, Diff};
+use clearscreen::clear;
 use git_vfs::memory_vfs;
+use git_vfs::{Diff, GitVfs};
+use git2::Repository;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
-use tokio::time::sleep;
-use clearscreen::clear;
-use git2::Repository;
 use tempfile::TempDir;
+use tokio::time::sleep;
 
 // --- HELPER FUNCTIONS ---
 
@@ -36,11 +36,11 @@ fn print_diff_state(diff: &Diff, source_node: &str, target_node: &str) {
         has_diff = true;
         match old_head {
             Some(h) => println!("- HEAD: {}", h),
-            None => {},
+            None => {}
         }
         match new_head {
             Some(h) => println!("+ HEAD: {}", h),
-            None => {},
+            None => {}
         }
     }
 
@@ -128,33 +128,42 @@ async fn main() {
     // Define author and committer with specific date
     let time = git2::Time::new(0, 0);
     let author = git2::Signature::new("GitVfs Test Author", "author@example.com", &time).unwrap();
-    let committer = git2::Signature::new("GitVfs Test Committer", "committer@example.com", &time).unwrap();
+    let committer =
+        git2::Signature::new("GitVfs Test Committer", "committer@example.com", &time).unwrap();
 
     // Create an empty tree
     let tree_id = repo.treebuilder(None).unwrap().write().unwrap();
     let tree = repo.find_tree(tree_id).unwrap();
 
     // Create the initial commit
-    let commit_id = repo.commit(
-        Some("HEAD"), // Point HEAD to this commit
-        &author,
-        &committer,
-        "feat(init): Initial commit",
-        &tree,
-        &[], // No parents for the initial commit
-    ).unwrap();
+    let commit_id = repo
+        .commit(
+            Some("HEAD"), // Point HEAD to this commit
+            &author,
+            &committer,
+            "feat(init): Initial commit",
+            &tree,
+            &[], // No parents for the initial commit
+        )
+        .unwrap();
     let _initial_commit = repo.find_commit(commit_id).unwrap();
 
     // Get raw commit and tree object data from git2 and populate node1_vfs
     let odb = repo.odb().unwrap();
     let commit_data = odb.read(commit_id).unwrap();
-    node1_vfs.create_object(&commit_id.to_string(), commit_data.data()).unwrap();
+    node1_vfs
+        .create_object(&commit_id.to_string(), commit_data.data())
+        .unwrap();
 
     let tree_data = odb.read(tree_id).unwrap();
-    node1_vfs.create_object(&tree_id.to_string(), tree_data.data()).unwrap();
+    node1_vfs
+        .create_object(&tree_id.to_string(), tree_data.data())
+        .unwrap();
 
     // Set the main ref and HEAD in node1_vfs
-    node1_vfs.create_ref(main_ref, &commit_id.to_string()).unwrap();
+    node1_vfs
+        .create_ref(main_ref, &commit_id.to_string())
+        .unwrap();
     node1_vfs.set_head(main_ref).unwrap();
     print_vfs_state(&node1_vfs, "Node 1");
 
@@ -163,21 +172,39 @@ async fn main() {
     let initial_commit_data = node1_vfs.get_object(&commit_id.to_string()).unwrap();
     let initial_tree_data = node1_vfs.get_object(&tree_id.to_string()).unwrap();
 
-    node2_vfs.create_object(&commit_id.to_string(), &initial_commit_data).unwrap();
-    node2_vfs.create_object(&tree_id.to_string(), &initial_tree_data).unwrap();
-    node2_vfs.create_ref(main_ref, &commit_id.to_string()).unwrap();
+    node2_vfs
+        .create_object(&commit_id.to_string(), &initial_commit_data)
+        .unwrap();
+    node2_vfs
+        .create_object(&tree_id.to_string(), &initial_tree_data)
+        .unwrap();
+    node2_vfs
+        .create_ref(main_ref, &commit_id.to_string())
+        .unwrap();
     node2_vfs.set_head(main_ref).unwrap();
     print_vfs_state(&node2_vfs, "Node 2");
 
-    node3_vfs.create_object(&commit_id.to_string(), &initial_commit_data).unwrap();
-    node3_vfs.create_object(&tree_id.to_string(), &initial_tree_data).unwrap();
-    node3_vfs.create_ref(main_ref, &commit_id.to_string()).unwrap();
+    node3_vfs
+        .create_object(&commit_id.to_string(), &initial_commit_data)
+        .unwrap();
+    node3_vfs
+        .create_object(&tree_id.to_string(), &initial_tree_data)
+        .unwrap();
+    node3_vfs
+        .create_ref(main_ref, &commit_id.to_string())
+        .unwrap();
     node3_vfs.set_head(main_ref).unwrap();
     print_vfs_state(&node3_vfs, "Node 3");
 
-    node4_vfs.create_object(&commit_id.to_string(), &initial_commit_data).unwrap();
-    node4_vfs.create_object(&tree_id.to_string(), &initial_tree_data).unwrap();
-    node4_vfs.create_ref(main_ref, &commit_id.to_string()).unwrap();
+    node4_vfs
+        .create_object(&commit_id.to_string(), &initial_commit_data)
+        .unwrap();
+    node4_vfs
+        .create_object(&tree_id.to_string(), &initial_tree_data)
+        .unwrap();
+    node4_vfs
+        .create_ref(main_ref, &commit_id.to_string())
+        .unwrap();
     node4_vfs.set_head(main_ref).unwrap();
     print_vfs_state(&node4_vfs, "Node 4");
 

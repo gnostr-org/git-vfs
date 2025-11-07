@@ -1,11 +1,11 @@
 // --- IMPORTS ---
-use git_vfs::{GitVfs, Diff};
+use clearscreen::clear;
 use git_vfs::memory_vfs;
+use git_vfs::{Diff, GitVfs};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use tokio::time::sleep;
-use clearscreen::clear;
 
 // --- HELPER FUNCTIONS ---
 
@@ -49,7 +49,11 @@ fn print_diff_state(diff: &Diff, source_node: &str, target_node: &str) {
             println!("  ~ {}: {} -> {}", ref_name, old_hash, new_hash);
         }
     }
-    if diff.head_changed.is_none() && diff.refs_added.is_empty() && diff.refs_removed.is_empty() && diff.refs_updated.is_empty() {
+    if diff.head_changed.is_none()
+        && diff.refs_added.is_empty()
+        && diff.refs_removed.is_empty()
+        && diff.refs_updated.is_empty()
+    {
         println!("No differences.");
     }
     println!("--------------------------");
