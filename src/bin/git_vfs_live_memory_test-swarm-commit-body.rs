@@ -6,6 +6,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use tokio::time::sleep;
 use clearscreen::clear;
+use git2::Repository;
+use tempfile::TempDir;
 
 // --- HELPER FUNCTIONS ---
 
@@ -116,28 +118,65 @@ async fn main() {
     }
     println!("--------------------------");
 
-    // --- INITIAL COMMIT ON NODE 1 and SYNC to NODE 2 ---
-    println!("\n--- Initializing Node 1 with first commit ---");
-    let initial_content = b"feat(init): Initial commit from Node 1";
-    let initial_hash = node1_vfs.create_blob(initial_content).unwrap();
-    node1_vfs.create_ref(main_ref, &initial_hash).unwrap();
+    // --- INITIAL COMMIT ON NODE 1 using git2 and SYNC to NODE 2, 3, 4 ---
+    println!("\n--- Initializing Node 1 with git2-generated first commit ---");
+
+    // Create a temporary git repository for git2 operations
+    let temp_dir = TempDir::new().unwrap();
+    let repo = Repository::init(&temp_dir).unwrap();
+
+    // Define author and committer with specific date
+    let time = git2::Time::new(0, 0);
+    let author = git2::Signature::new("GitVfs Test Author", "author@example.com", &time).unwrap();
+    let committer = git2::Signature::new("GitVfs Test Committer", "committer@example.com", &time).unwrap();
+
+    // Create an empty tree
+    let tree_id = repo.treebuilder(None).unwrap().write().unwrap();
+    let tree = repo.find_tree(tree_id).unwrap();
+
+    // Create the initial commit
+    let commit_id = repo.commit(
+        Some("HEAD"), // Point HEAD to this commit
+        &author,
+        &committer,
+        "feat(init): Initial commit",
+        &tree,
+        &[], // No parents for the initial commit
+    ).unwrap();
+    let initial_commit = repo.find_commit(commit_id).unwrap();
+
+    // Get raw commit and tree object data from git2 and populate node1_vfs
+    let commit_obj = repo.find_object(commit_id, None).unwrap();
+    node1_vfs.create_object(&commit_id.to_string(), commit_obj.raw_content()).unwrap();
+
+    let tree_obj = repo.find_object(tree_id, None).unwrap();
+    node1_vfs.create_object(&tree_id.to_string(), tree_obj.raw_content()).unwrap();
+
+    // Set the main ref and HEAD in node1_vfs
+    node1_vfs.create_ref(main_ref, &commit_id.to_string()).unwrap();
     node1_vfs.set_head(main_ref).unwrap();
     print_vfs_state(&node1_vfs, "Node 1");
 
     println!("\n--- Cloning Node 1's state to Node 2, Node 3, and Node 4 ---");
-    let obj_data = node1_vfs.get_object(&initial_hash).unwrap();
-    node2_vfs.create_object(&initial_hash, &obj_data).unwrap();
-    node2_vfs.create_ref(main_ref, &initial_hash).unwrap();
+    // For cloning, we need to copy the initial commit and tree objects
+    let initial_commit_data = node1_vfs.get_object(&commit_id.to_string()).unwrap();
+    let initial_tree_data = node1_vfs.get_object(&tree_id.to_string()).unwrap();
+
+    node2_vfs.create_object(&commit_id.to_string(), &initial_commit_data).unwrap();
+    node2_vfs.create_object(&tree_id.to_string(), &initial_tree_data).unwrap();
+    node2_vfs.create_ref(main_ref, &commit_id.to_string()).unwrap();
     node2_vfs.set_head(main_ref).unwrap();
     print_vfs_state(&node2_vfs, "Node 2");
 
-    node3_vfs.create_object(&initial_hash, &obj_data).unwrap();
-    node3_vfs.create_ref(main_ref, &initial_hash).unwrap();
+    node3_vfs.create_object(&commit_id.to_string(), &initial_commit_data).unwrap();
+    node3_vfs.create_object(&tree_id.to_string(), &initial_tree_data).unwrap();
+    node3_vfs.create_ref(main_ref, &commit_id.to_string()).unwrap();
     node3_vfs.set_head(main_ref).unwrap();
     print_vfs_state(&node3_vfs, "Node 3");
 
-    node4_vfs.create_object(&initial_hash, &obj_data).unwrap();
-    node4_vfs.create_ref(main_ref, &initial_hash).unwrap();
+    node4_vfs.create_object(&commit_id.to_string(), &initial_commit_data).unwrap();
+    node4_vfs.create_object(&tree_id.to_string(), &initial_tree_data).unwrap();
+    node4_vfs.create_ref(main_ref, &commit_id.to_string()).unwrap();
     node4_vfs.set_head(main_ref).unwrap();
     print_vfs_state(&node4_vfs, "Node 4");
 
