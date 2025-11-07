@@ -11,10 +11,6 @@ use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::io;
 
-
-//GEMINI this made the tests pass
-use vfs::VfsResult;
-
 pub mod overlay_vfs;
 pub mod altroot_vfs;
 pub mod memory_vfs;
