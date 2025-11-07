@@ -5,6 +5,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use tokio::time::sleep;
+use clearscreen::clear;
 
 // --- HELPER FUNCTIONS ---
 
@@ -132,6 +133,7 @@ async fn main() {
 
     // --- MAIN LOOP for continuous commits and sync ---
     while running.load(Ordering::SeqCst) {
+        clear().unwrap();
         println!("\n--- Cycle {} ---", commit_counter);
 
         // --- Node 1 creates a new commit ---
