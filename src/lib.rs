@@ -10,9 +10,9 @@ use libp2p::{
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::io;
-use vfs::VfsResult;
 
 pub mod overlay_vfs;
+pub mod altroot_vfs;
 
 #[derive(Debug, PartialEq)]
 pub enum GitVfsError {
@@ -697,4 +697,9 @@ mod tests {
     #[test]
     fn test_overlay_fs_module() -> VfsResult<()> {
         crate::overlay_vfs::create_and_test_overlay_fs()
+    }
+
+    #[test]
+    fn test_altroot_fs_module() -> VfsResult<()> {
+        crate::altroot_vfs::create_and_test_altroot_fs()
     }
