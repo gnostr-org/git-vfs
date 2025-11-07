@@ -28,7 +28,7 @@ fn print_vfs_state(vfs: &GitVfs, node_name: &str) {
 
 #[tokio::main]
 async fn main() {
-    println!("--- Git VFS Live Test: 2-Node Continuous Git History Exchange ---");
+    println!("--- Git VFS Live Test: 4-Node Continuous Git History Exchange ---");
     println!("Press Ctrl-C or type 'q' and press Enter to stop.");
 
     // --- SETUP FOR GRACEFUL SHUTDOWN ---
@@ -61,6 +61,8 @@ async fn main() {
     // --- NODE INITIALIZATION ---
     let mut node1_vfs = GitVfs::new();
     let mut node2_vfs = GitVfs::new();
+    let mut node3_vfs = GitVfs::new();
+    let mut node4_vfs = GitVfs::new();
     let main_ref = "refs/heads/main";
 
     // --- Test Memory VFS functionality ---
@@ -79,12 +81,22 @@ async fn main() {
     node1_vfs.set_head(main_ref).unwrap();
     print_vfs_state(&node1_vfs, "Node 1");
 
-    println!("\n--- Cloning Node 1's state to Node 2 ---");
+    println!("\n--- Cloning Node 1's state to Node 2, Node 3, and Node 4 ---");
     let obj_data = node1_vfs.get_object(&initial_hash).unwrap();
     node2_vfs.create_object(&initial_hash, &obj_data).unwrap();
     node2_vfs.create_ref(main_ref, &initial_hash).unwrap();
     node2_vfs.set_head(main_ref).unwrap();
     print_vfs_state(&node2_vfs, "Node 2");
+
+    node3_vfs.create_object(&initial_hash, &obj_data).unwrap();
+    node3_vfs.create_ref(main_ref, &initial_hash).unwrap();
+    node3_vfs.set_head(main_ref).unwrap();
+    print_vfs_state(&node3_vfs, "Node 3");
+
+    node4_vfs.create_object(&initial_hash, &obj_data).unwrap();
+    node4_vfs.create_ref(main_ref, &initial_hash).unwrap();
+    node4_vfs.set_head(main_ref).unwrap();
+    print_vfs_state(&node4_vfs, "Node 4");
 
     let mut commit_counter = 1;
 
@@ -106,23 +118,51 @@ async fn main() {
         println!("Node 2 created new commit.");
         print_vfs_state(&node2_vfs, "Node 2");
 
+        // --- Node 3 creates a new commit ---
+        let node3_content = format!("Node 3, commit #{}", commit_counter);
+        let node3_hash = node3_vfs.create_blob(node3_content.as_bytes()).unwrap();
+        node3_vfs.update_ref(main_ref, &node3_hash).unwrap();
+        println!("Node 3 created new commit.");
+        print_vfs_state(&node3_vfs, "Node 3");
+
+        // --- Node 4 creates a new commit ---
+        let node4_content = format!("Node 4, commit #{}", commit_counter);
+        let node4_hash = node4_vfs.create_blob(node4_content.as_bytes()).unwrap();
+        node4_vfs.update_ref(main_ref, &node4_hash).unwrap();
+        println!("Node 4 created new commit.");
+        print_vfs_state(&node4_vfs, "Node 4");
+
         // --- Simulate Syncing ---
         // Node 2 fetches from Node 1
         let n1_obj_data = node1_vfs.get_object(&node1_hash).unwrap();
         node2_vfs.create_object(&node1_hash, &n1_obj_data).unwrap();
-        // In a real scenario, nodes would decide how to merge. Here we'll just have Node 2
-        // arbitrarily decide to update its main ref to Node 1's version for simplicity.
         node2_vfs.update_ref(main_ref, &node1_hash).unwrap();
         println!("Node 2 synced from Node 1.");
 
-        // Node 1 fetches from Node 2
+        // Node 3 fetches from Node 1
+        node3_vfs.create_object(&node1_hash, &n1_obj_data).unwrap();
+        node3_vfs.update_ref(main_ref, &node1_hash).unwrap();
+        println!("Node 3 synced from Node 1.");
+
+        // Node 4 fetches from Node 1
+        node4_vfs.create_object(&node1_hash, &n1_obj_data).unwrap();
+        node4_vfs.update_ref(main_ref, &node1_hash).unwrap();
+        println!("Node 4 synced from Node 1.");
+
+        // Node 1 fetches from Node 2, Node 3, and Node 4 (object only for simplicity)
         let n2_obj_data = node2_vfs.get_object(&node2_hash).unwrap();
         node1_vfs.create_object(&node2_hash, &n2_obj_data).unwrap();
-        println!("Node 1 synced from Node 2 (object only).");
+        let n3_obj_data = node3_vfs.get_object(&node3_hash).unwrap();
+        node1_vfs.create_object(&node3_hash, &n3_obj_data).unwrap();
+        let n4_obj_data = node4_vfs.get_object(&node4_hash).unwrap();
+        node1_vfs.create_object(&node4_hash, &n4_obj_data).unwrap();
+        println!("Node 1 synced from Node 2, Node 3, and Node 4 (objects only).");
 
         println!("\n--- State after sync cycle {}", commit_counter);
         print_vfs_state(&node1_vfs, "Node 1 (Final)");
         print_vfs_state(&node2_vfs, "Node 2 (Final)");
+        print_vfs_state(&node3_vfs, "Node 3 (Final)");
+        print_vfs_state(&node4_vfs, "Node 4 (Final)");
 
         sleep(Duration::from_secs(3)).await;
         commit_counter += 1;
