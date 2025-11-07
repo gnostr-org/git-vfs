@@ -30,6 +30,14 @@ pub struct GitVfs {
     head: Option<String>,              // Stores the current HEAD reference
 }
 
+#[derive(Debug, PartialEq)]
+pub struct Diff {
+    pub head_changed: Option<(Option<String>, Option<String>)>, // (old_head, new_head)
+    pub refs_added: HashMap<String, String>,
+    pub refs_removed: HashMap<String, String>,
+    pub refs_updated: HashMap<String, (String, String)>, // (ref_name, (old_hash, new_hash))
+}
+
 impl Default for GitVfs {
     fn default() -> Self {
         Self::new()
@@ -45,6 +53,44 @@ impl GitVfs {
         }
     }
 
+    pub fn diff(&self, other: &GitVfs) -> Diff {
+        let mut head_changed = None;
+        if self.head != other.head {
+            head_changed = Some((self.head.clone(), other.head.clone()));
+        }
+
+        let mut refs_added = HashMap::new();
+        let mut refs_removed = HashMap::new();
+        let mut refs_updated = HashMap::new();
+
+        // Check for added and updated refs in 'other'
+        for (ref_name, other_hash) in &other.refs {
+            match self.refs.get(ref_name) {
+                Some(self_hash) => {
+                    if self_hash != other_hash {
+                        refs_updated.insert(ref_name.clone(), (self_hash.clone(), other_hash.clone()));
+                    }
+                }
+                None => {
+                    refs_added.insert(ref_name.clone(), other_hash.clone());
+                }
+            }
+        }
+
+        // Check for removed refs from 'self'
+        for (ref_name, self_hash) in &self.refs {
+            if !other.refs.contains_key(ref_name) {
+                refs_removed.insert(ref_name.clone(), self_hash.clone());
+            }
+        }
+
+        Diff {
+            head_changed,
+            refs_added,
+            refs_removed,
+            refs_updated,
+        }
+    }
     pub fn create_object(&mut self, hash: &str, data: &[u8]) -> GitVfsResult<()> {
         if self.objects.contains_key(hash) {
             return Err(GitVfsError::AlreadyExists);
@@ -509,6 +555,112 @@ mod tests {
         let combined_hash = hex::encode(hasher.finalize());
         let single_hash = hex::encode(Sha256::digest(b"part one part two"));
         assert_eq!(combined_hash, single_hash);
+    }
+
+    #[test]
+    fn test_git_vfs_diff() {
+        // Case 1: No differences
+        let vfs1_c1 = GitVfs::new();
+        let vfs2_c1 = GitVfs::new();
+        let diff_c1 = vfs1_c1.diff(&vfs2_c1);
+        assert_eq!(diff_c1.head_changed, None);
+        assert!(diff_c1.refs_added.is_empty());
+        assert!(diff_c1.refs_removed.is_empty());
+        assert!(diff_c1.refs_updated.is_empty());
+
+        // Case 2: HEAD changed (vfs1 has HEAD, vfs2 has no HEAD)
+        let mut vfs1_c2a = GitVfs::new();
+        let vfs2_c2a = GitVfs::new();
+        vfs1_c2a.create_ref("refs/heads/main", "hash1").unwrap();
+        vfs1_c2a.set_head("refs/heads/main").unwrap();
+        let diff_c2a = vfs1_c2a.diff(&vfs2_c2a);
+        assert_eq!(diff_c2a.head_changed, Some((Some("refs/heads/main".to_string()), None)));
+        assert_eq!(diff_c2a.refs_removed.len(), 1);
+        assert_eq!(diff_c2a.refs_removed["refs/heads/main"], "hash1");
+        assert!(diff_c2a.refs_added.is_empty());
+        assert!(diff_c2a.refs_updated.is_empty());
+
+        // Case 2b: HEAD changed (vfs1 and vfs2 have same HEAD and refs)
+        let mut vfs1_c2b = GitVfs::new();
+        let mut vfs2_c2b = GitVfs::new();
+        vfs1_c2b.create_ref("refs/heads/main", "hash1").unwrap();
+        vfs1_c2b.set_head("refs/heads/main").unwrap();
+        vfs2_c2b.create_ref("refs/heads/main", "hash1").unwrap();
+        vfs2_c2b.set_head("refs/heads/main").unwrap();
+        let diff_c2b = vfs1_c2b.diff(&vfs2_c2b);
+        assert_eq!(diff_c2b.head_changed, None);
+        assert!(diff_c2b.refs_added.is_empty());
+        assert!(diff_c2b.refs_removed.is_empty());
+        assert!(diff_c2b.refs_updated.is_empty());
+
+        // Case 2c: HEAD changed (vfs1 has HEAD, vfs2 has different HEAD and added ref)
+        let mut vfs1_c2c = GitVfs::new();
+        let mut vfs2_c2c = GitVfs::new();
+        vfs1_c2c.create_ref("refs/heads/main", "hash1").unwrap();
+        vfs1_c2c.set_head("refs/heads/main").unwrap();
+        vfs2_c2c.create_ref("refs/heads/feature", "hash_feature").unwrap();
+        vfs2_c2c.set_head("refs/heads/feature").unwrap();
+        let diff_c2c = vfs1_c2c.diff(&vfs2_c2c);
+        assert_eq!(diff_c2c.head_changed, Some((Some("refs/heads/main".to_string()), Some("refs/heads/feature".to_string()))));
+        assert_eq!(diff_c2c.refs_added.len(), 1);
+        assert_eq!(diff_c2c.refs_added["refs/heads/feature"], "hash_feature");
+        assert_eq!(diff_c2c.refs_removed.len(), 1);
+        assert_eq!(diff_c2c.refs_removed["refs/heads/main"], "hash1");
+        assert!(diff_c2c.refs_updated.is_empty());
+
+        // Case 3: Added references
+        let mut vfs1_c3 = GitVfs::new();
+        let mut vfs2_c3 = GitVfs::new();
+        vfs2_c3.create_ref("refs/heads/dev", "hash_dev").unwrap();
+        let diff_c3 = vfs1_c3.diff(&vfs2_c3);
+        assert_eq!(diff_c3.head_changed, None);
+        assert_eq!(diff_c3.refs_added.len(), 1);
+        assert_eq!(diff_c3.refs_added["refs/heads/dev"], "hash_dev");
+        assert!(diff_c3.refs_removed.is_empty());
+        assert!(diff_c3.refs_updated.is_empty());
+
+        // Case 4: Removed references
+        let mut vfs1_c4 = GitVfs::new();
+        let vfs2_c4 = GitVfs::new();
+        vfs1_c4.create_ref("refs/heads/temp", "hash_temp").unwrap();
+        let diff_c4 = vfs1_c4.diff(&vfs2_c4);
+        assert_eq!(diff_c4.head_changed, None);
+        assert!(diff_c4.refs_added.is_empty());
+        assert_eq!(diff_c4.refs_removed.len(), 1);
+        assert_eq!(diff_c4.refs_removed["refs/heads/temp"], "hash_temp");
+        assert!(diff_c4.refs_updated.is_empty());
+
+        // Case 5: Updated references
+        let mut vfs1_c5 = GitVfs::new();
+        let mut vfs2_c5 = GitVfs::new();
+        vfs1_c5.create_ref("refs/heads/main", "hash1").unwrap();
+        vfs2_c5.create_ref("refs/heads/main", "hash_updated").unwrap();
+        let diff_c5 = vfs1_c5.diff(&vfs2_c5);
+        assert_eq!(diff_c5.head_changed, None);
+        assert!(diff_c5.refs_added.is_empty());
+        assert!(diff_c5.refs_removed.is_empty());
+        assert_eq!(diff_c5.refs_updated.len(), 1);
+        assert_eq!(diff_c5.refs_updated["refs/heads/main"], ("hash1".to_string(), "hash_updated".to_string()));
+
+        // Case 6: Combined changes
+        let mut vfs1_c6 = GitVfs::new();
+        vfs1_c6.create_ref("refs/heads/main", "hash_a1").unwrap();
+        vfs1_c6.create_ref("refs/heads/feature_a", "hash_fa1").unwrap();
+        vfs1_c6.set_head("refs/heads/main").unwrap();
+
+        let mut vfs2_c6 = GitVfs::new();
+        vfs2_c6.create_ref("refs/heads/main", "hash_a2").unwrap(); // Updated
+        vfs2_c6.create_ref("refs/heads/feature_b", "hash_fb1").unwrap(); // Added
+        vfs2_c6.set_head("refs/heads/feature_b").unwrap(); // Head changed
+
+        let diff_c6 = vfs1_c6.diff(&vfs2_c6);
+        assert_eq!(diff_c6.head_changed, Some((Some("refs/heads/main".to_string()), Some("refs/heads/feature_b".to_string()))));
+        assert_eq!(diff_c6.refs_added.len(), 1);
+        assert_eq!(diff_c6.refs_added["refs/heads/feature_b"], "hash_fb1");
+        assert_eq!(diff_c6.refs_removed.len(), 1);
+        assert_eq!(diff_c6.refs_removed["refs/heads/feature_a"], "hash_fa1");
+        assert_eq!(diff_c6.refs_updated.len(), 1);
+        assert_eq!(diff_c6.refs_updated["refs/heads/main"], ("hash_a1".to_string(), "hash_a2".to_string()));
     }
 
     // --- Test for simulating peer synchronization ---
