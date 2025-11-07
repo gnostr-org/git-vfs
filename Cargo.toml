@@ -17,6 +17,9 @@ libp2p-core = "0.43.1"
 libp2p-noise = "0.46.1"
 libp2p-yamux = "0.45.2"
 
+# --- Git2 Dependency ---
+git2 = "0.18.3"
+
 # --- Your Existing Dependencies ---
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
