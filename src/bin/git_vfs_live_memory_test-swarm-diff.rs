@@ -141,12 +141,24 @@ async fn main() {
         println!("Node 1 created new commit.");
         print_vfs_state(&node1_vfs, "Node 1");
 
+        println!("\n--- Intermediate Diffs after Node 1 commit ---");
+        let diff1_2_pre_n2 = node1_vfs.diff(&node2_vfs);
+        print_diff_state(&diff1_2_pre_n2, "Node 1", "Node 2 (pre-commit)");
+        let diff1_3_pre_n3 = node1_vfs.diff(&node3_vfs);
+        print_diff_state(&diff1_3_pre_n3, "Node 1", "Node 3 (pre-commit)");
+        let diff1_4_pre_n4 = node1_vfs.diff(&node4_vfs);
+        print_diff_state(&diff1_4_pre_n4, "Node 1", "Node 4 (pre-commit)");
+
         // --- Node 2 creates a new commit ---
         let node2_content = format!("Node 2, commit #{}", commit_counter);
         let node2_hash = node2_vfs.create_blob(node2_content.as_bytes()).unwrap();
         node2_vfs.update_ref(main_ref, &node2_hash).unwrap();
         println!("Node 2 created new commit.");
         print_vfs_state(&node2_vfs, "Node 2");
+
+        println!("\n--- Intermediate Diffs after Node 2 commit ---");
+        let diff1_2_post_n2 = node1_vfs.diff(&node2_vfs);
+        print_diff_state(&diff1_2_post_n2, "Node 1", "Node 2 (post-commit)");
 
         // --- Node 3 creates a new commit ---
         let node3_content = format!("Node 3, commit #{}", commit_counter);
@@ -155,12 +167,20 @@ async fn main() {
         println!("Node 3 created new commit.");
         print_vfs_state(&node3_vfs, "Node 3");
 
+        println!("\n--- Intermediate Diffs after Node 3 commit ---");
+        let diff1_3_post_n3 = node1_vfs.diff(&node3_vfs);
+        print_diff_state(&diff1_3_post_n3, "Node 1", "Node 3 (post-commit)");
+
         // --- Node 4 creates a new commit ---
         let node4_content = format!("Node 4, commit #{}", commit_counter);
         let node4_hash = node4_vfs.create_blob(node4_content.as_bytes()).unwrap();
         node4_vfs.update_ref(main_ref, &node4_hash).unwrap();
         println!("Node 4 created new commit.");
         print_vfs_state(&node4_vfs, "Node 4");
+
+        println!("\n--- Intermediate Diffs after Node 4 commit ---");
+        let diff1_4_post_n4 = node1_vfs.diff(&node4_vfs);
+        print_diff_state(&diff1_4_post_n4, "Node 1", "Node 4 (post-commit)");
 
         // --- Simulate Syncing ---
         // Node 2 fetches from Node 1
