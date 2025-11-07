@@ -106,7 +106,7 @@ async fn main() {
 
     // --- INITIAL COMMIT ON NODE 1 and SYNC to NODE 2 ---
     println!("\n--- Initializing Node 1 with first commit ---");
-    let initial_content = b"Initial commit from Node 1";
+    let initial_content = b"feat(init): Initial commit from Node 1";
     let initial_hash = node1_vfs.create_blob(initial_content).unwrap();
     node1_vfs.create_ref(main_ref, &initial_hash).unwrap();
     node1_vfs.set_head(main_ref).unwrap();
@@ -137,7 +137,7 @@ async fn main() {
         println!("\n--- Cycle {} ---", commit_counter);
 
         // --- Node 1 creates a new commit ---
-        let node1_content = format!("Node 1, commit #{}", commit_counter);
+        let node1_content = format!("feat(node1): add commit #{}", commit_counter);
         let node1_hash = node1_vfs.create_blob(node1_content.as_bytes()).unwrap();
         node1_vfs.update_ref(main_ref, &node1_hash).unwrap();
         println!("Node 1 created new commit.");
@@ -152,7 +152,7 @@ async fn main() {
         print_diff_state(&diff1_4_pre_n4, "Node 1", "Node 4 (pre-commit)");
 
         // --- Node 2 creates a new commit ---
-        let node2_content = format!("Node 2, commit #{}", commit_counter);
+        let node2_content = format!("feat(node2): add commit #{}", commit_counter);
         let node2_hash = node2_vfs.create_blob(node2_content.as_bytes()).unwrap();
         node2_vfs.update_ref(main_ref, &node2_hash).unwrap();
         println!("Node 2 created new commit.");
@@ -163,7 +163,7 @@ async fn main() {
         print_diff_state(&diff1_2_post_n2, "Node 1", "Node 2 (post-commit)");
 
         // --- Node 3 creates a new commit ---
-        let node3_content = format!("Node 3, commit #{}", commit_counter);
+        let node3_content = format!("feat(node3): add commit #{}", commit_counter);
         let node3_hash = node3_vfs.create_blob(node3_content.as_bytes()).unwrap();
         node3_vfs.update_ref(main_ref, &node3_hash).unwrap();
         println!("Node 3 created new commit.");
@@ -174,7 +174,7 @@ async fn main() {
         print_diff_state(&diff1_3_post_n3, "Node 1", "Node 3 (post-commit)");
 
         // --- Node 4 creates a new commit ---
-        let node4_content = format!("Node 4, commit #{}", commit_counter);
+        let node4_content = format!("feat(node4): add commit #{}", commit_counter);
         let node4_hash = node4_vfs.create_blob(node4_content.as_bytes()).unwrap();
         node4_vfs.update_ref(main_ref, &node4_hash).unwrap();
         println!("Node 4 created new commit.");
