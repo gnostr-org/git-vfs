@@ -143,14 +143,15 @@ async fn main() {
         &tree,
         &[], // No parents for the initial commit
     ).unwrap();
-    let initial_commit = repo.find_commit(commit_id).unwrap();
+    let _initial_commit = repo.find_commit(commit_id).unwrap();
 
     // Get raw commit and tree object data from git2 and populate node1_vfs
-    let commit_obj = repo.find_object(commit_id, None).unwrap();
-    node1_vfs.create_object(&commit_id.to_string(), commit_obj.raw_content()).unwrap();
+    let odb = repo.odb().unwrap();
+    let commit_data = odb.read(commit_id).unwrap();
+    node1_vfs.create_object(&commit_id.to_string(), commit_data.data()).unwrap();
 
-    let tree_obj = repo.find_object(tree_id, None).unwrap();
-    node1_vfs.create_object(&tree_id.to_string(), tree_obj.raw_content()).unwrap();
+    let tree_data = odb.read(tree_id).unwrap();
+    node1_vfs.create_object(&tree_id.to_string(), tree_data.data()).unwrap();
 
     // Set the main ref and HEAD in node1_vfs
     node1_vfs.create_ref(main_ref, &commit_id.to_string()).unwrap();
