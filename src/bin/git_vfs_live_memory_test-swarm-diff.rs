@@ -1,5 +1,5 @@
 // --- IMPORTS ---
-use git_vfs::GitVfs;
+use git_vfs::{GitVfs, Diff};
 use git_vfs::memory_vfs;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -22,6 +22,36 @@ fn print_vfs_state(vfs: &GitVfs, node_name: &str) {
         println!("HEAD: (not set)");
     }
     println!("---------------------");
+}
+
+// Helper to print the state of a Diff instance
+fn print_diff_state(diff: &Diff, source_node: &str, target_node: &str) {
+    println!("--- Diff from {} to {} ---", source_node, target_node);
+    if let Some((old_head, new_head)) = &diff.head_changed {
+        println!("HEAD changed: {:?} -> {:?}", old_head, new_head);
+    }
+    if !diff.refs_added.is_empty() {
+        println!("Refs Added:");
+        for (ref_name, hash) in &diff.refs_added {
+            println!("  + {}: {}", ref_name, hash);
+        }
+    }
+    if !diff.refs_removed.is_empty() {
+        println!("Refs Removed:");
+        for (ref_name, hash) in &diff.refs_removed {
+            println!("  - {}: {}", ref_name, hash);
+        }
+    }
+    if !diff.refs_updated.is_empty() {
+        println!("Refs Updated:");
+        for (ref_name, (old_hash, new_hash)) in &diff.refs_updated {
+            println!("  ~ {}: {} -> {}", ref_name, old_hash, new_hash);
+        }
+    }
+    if diff.head_changed.is_none() && diff.refs_added.is_empty() && diff.refs_removed.is_empty() && diff.refs_updated.is_empty() {
+        println!("No differences.");
+    }
+    println!("--------------------------");
 }
 
 // --- MAIN TEST FUNCTION ---
@@ -163,6 +193,26 @@ async fn main() {
         print_vfs_state(&node2_vfs, "Node 2 (Final)");
         print_vfs_state(&node3_vfs, "Node 3 (Final)");
         print_vfs_state(&node4_vfs, "Node 4 (Final)");
+
+        // --- Print Diffs ---
+        println!("\n--- Diffs after sync cycle {} ---", commit_counter);
+        let diff1_2 = node1_vfs.diff(&node2_vfs);
+        print_diff_state(&diff1_2, "Node 1", "Node 2");
+
+        let diff2_1 = node2_vfs.diff(&node1_vfs);
+        print_diff_state(&diff2_1, "Node 2", "Node 1");
+
+        let diff1_3 = node1_vfs.diff(&node3_vfs);
+        print_diff_state(&diff1_3, "Node 1", "Node 3");
+
+        let diff3_1 = node3_vfs.diff(&node1_vfs);
+        print_diff_state(&diff3_1, "Node 3", "Node 1");
+
+        let diff1_4 = node1_vfs.diff(&node4_vfs);
+        print_diff_state(&diff1_4, "Node 1", "Node 4");
+
+        let diff4_1 = node4_vfs.diff(&node1_vfs);
+        print_diff_state(&diff4_1, "Node 4", "Node 1");
 
         sleep(Duration::from_secs(3)).await;
         commit_counter += 1;
