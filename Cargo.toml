@@ -39,6 +39,9 @@ path = "src/bin/git-vfs-AltrootFS.rs"
 name = "git_vfs_v2"
 path = "src/bin/git_vfs_v2.rs"
 
+[features]
+memory_profiling = ["tikv-jemallocator", "tikv-jemalloc-ctl"]
+
 [dependencies]
 async-std = { version = "1.12", features = ["async-channel", "attributes"] }
 
@@ -65,8 +68,5 @@ tokio = { version = "1.38", features = ["full"] }
 vfs = { version = "0.12.2", features = ["tokio", "async-vfs", "futures", "embedded-fs"] }
 
 [target.'cfg(not(target_env = "msvc"))'.dependencies]
-tikv-jemallocator = { version = "0.6.1", optional = true } 
 tikv-jemalloc-ctl = { version = "0.6.1", optional = true, features = ["stats"] }
-
-[features]
-memory_profiling = ["tikv-jemallocator", "tikv-jemalloc-ctl"]
+tikv-jemallocator = { version = "0.6.1", optional = true } 
