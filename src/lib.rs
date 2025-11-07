@@ -10,7 +10,6 @@ use libp2p::{
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::io;
-use vfs::{MemoryFS, VfsPath, VfsResult};
 
 pub mod overlay_vfs;
 pub mod altroot_vfs;
