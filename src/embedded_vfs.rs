@@ -1,9 +1,36 @@
 use rust_embed::RustEmbed;
 use vfs::{EmbeddedFS, VfsPath, VfsResult};
+use std::fs;
+use std::path::Path;
+use tempfile::TempDir;
 
 #[derive(RustEmbed, Debug)]
 #[folder = "$CARGO_MANIFEST_DIR/src/empty/.git"]
 pub struct Asset;
+
+pub fn extract_embedded_git_to_temp_dir() -> VfsResult<TempDir> {
+    let temp_dir = TempDir::new().map_err(|e| vfs::VfsError::Other(e.into()))?;
+    let embedded_fs = EmbeddedFS::<Asset>::new();
+    let root: VfsPath = embedded_fs.into();
+
+    fn copy_recursively(src: &VfsPath, dest: &Path) -> VfsResult<()> {
+        if src.is_dir()? {
+            fs::create_dir_all(dest).map_err(|e| vfs::VfsError::Other(e.into()))?;
+            for entry in src.read_dir()? {
+                copy_recursively(&entry, &dest.join(entry.filename()))?;
+            }
+        } else if src.is_file()? {
+            let mut file = src.open_file()?;
+            let mut buffer = Vec::new();
+            file.read_to_end(&mut buffer)?;
+            fs::write(dest, &buffer).map_err(|e| vfs::VfsError::Other(e.into()))?;
+        }
+        Ok(())
+    }
+
+    copy_recursively(&root, temp_dir.path())?;
+    Ok(temp_dir)
+}
 
 pub fn create_and_test_embedded_fs() -> VfsResult<()> {
     println!("-- Embedded .git FS Example ---");
