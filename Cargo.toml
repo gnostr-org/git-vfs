@@ -32,6 +32,10 @@ name = "git_vfs_v1"
 path = "src/bin/git_vfs_v1.rs"
 
 [[bin]]
+name = "git-vfs-AltrootFS"
+path = "src/bin/git-vfs-AltrootFS.rs"
+
+[[bin]]
 name = "git_vfs_v2"
 path = "src/bin/git_vfs_v2.rs"
 
