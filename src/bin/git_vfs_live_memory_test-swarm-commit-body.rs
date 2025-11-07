@@ -28,28 +28,40 @@ fn print_vfs_state(vfs: &GitVfs, node_name: &str) {
 // Helper to print the state of a Diff instance
 fn print_diff_state(diff: &Diff, source_node: &str, target_node: &str) {
     println!("--- Diff from {} to {} ---", source_node, target_node);
+    let mut has_diff = false;
+
     if let Some((old_head, new_head)) = &diff.head_changed {
-        println!("HEAD changed: {:?} -> {:?}", old_head, new_head);
+        has_diff = true;
+        match old_head {
+            Some(h) => println!("- HEAD: {}", h),
+            None => {},
+        }
+        match new_head {
+            Some(h) => println!("+ HEAD: {}", h),
+            None => {},
+        }
     }
+
     if !diff.refs_added.is_empty() {
-        println!("Refs Added:");
+        has_diff = true;
         for (ref_name, hash) in &diff.refs_added {
-            println!("  + {}: {}", ref_name, hash);
+            println!("+ {}: {}", ref_name, hash);
         }
     }
     if !diff.refs_removed.is_empty() {
-        println!("Refs Removed:");
+        has_diff = true;
         for (ref_name, hash) in &diff.refs_removed {
-            println!("  - {}: {}", ref_name, hash);
+            println!("- {}: {}", ref_name, hash);
         }
     }
     if !diff.refs_updated.is_empty() {
-        println!("Refs Updated:");
+        has_diff = true;
         for (ref_name, (old_hash, new_hash)) in &diff.refs_updated {
-            println!("  ~ {}: {} -> {}", ref_name, old_hash, new_hash);
+            println!("- {}: {}", ref_name, old_hash);
+            println!("+ {}: {}", ref_name, new_hash);
         }
     }
-    if diff.head_changed.is_none() && diff.refs_added.is_empty() && diff.refs_removed.is_empty() && diff.refs_updated.is_empty() {
+    if !has_diff {
         println!("No differences.");
     }
     println!("--------------------------");
@@ -158,6 +170,13 @@ async fn main() {
         println!("Node 2 created new commit.");
         print_vfs_state(&node2_vfs, "Node 2");
 
+        // Node 2 creates a feature branch every 2 cycles
+        if commit_counter % 2 == 0 {
+            let feature_ref = format!("refs/heads/feature-{}", commit_counter);
+            node2_vfs.create_ref(&feature_ref, &node2_hash).unwrap();
+            println!("Node 2 created feature branch: {}", feature_ref);
+        }
+
         println!("\n--- Intermediate Diffs after Node 2 commit ---");
         let diff1_2_post_n2 = node1_vfs.diff(&node2_vfs);
         print_diff_state(&diff1_2_post_n2, "Node 1", "Node 2 (post-commit)");
@@ -169,6 +188,19 @@ async fn main() {
         println!("Node 3 created new commit.");
         print_vfs_state(&node3_vfs, "Node 3");
 
+        // Node 3 creates a temporary branch and then deletes it after 3 cycles
+        if commit_counter % 3 == 1 {
+            let temp_ref = format!("refs/heads/temp-{}", commit_counter);
+            node3_vfs.create_ref(&temp_ref, &node3_hash).unwrap();
+            println!("Node 3 created temporary branch: {}", temp_ref);
+        } else if commit_counter % 3 == 0 && commit_counter > 0 {
+            let temp_ref_to_remove = format!("refs/heads/temp-{}", commit_counter - 2);
+            if node3_vfs.get_ref(&temp_ref_to_remove).is_ok() {
+                node3_vfs.remove_ref(&temp_ref_to_remove).unwrap();
+                println!("Node 3 removed temporary branch: {}", temp_ref_to_remove);
+            }
+        }
+
         println!("\n--- Intermediate Diffs after Node 3 commit ---");
         let diff1_3_post_n3 = node1_vfs.diff(&node3_vfs);
         print_diff_state(&diff1_3_post_n3, "Node 1", "Node 3 (post-commit)");
@@ -179,6 +211,18 @@ async fn main() {
         node4_vfs.update_ref(main_ref, &node4_hash).unwrap();
         println!("Node 4 created new commit.");
         print_vfs_state(&node4_vfs, "Node 4");
+
+        // Node 4 creates a new branch and switches HEAD every 2 cycles
+        if commit_counter % 2 == 1 {
+            let new_branch_ref = format!("refs/heads/experimental-{}", commit_counter);
+            node4_vfs.create_ref(&new_branch_ref, &node4_hash).unwrap();
+            node4_vfs.set_head(&new_branch_ref).unwrap();
+            println!("Node 4 created and switched to branch: {}", new_branch_ref);
+        } else {
+            // Switch back to main on even cycles to create more HEAD changes
+            node4_vfs.set_head(main_ref).unwrap();
+            println!("Node 4 switched HEAD back to: {}", main_ref);
+        }
 
         println!("\n--- Intermediate Diffs after Node 4 commit ---");
         let diff1_4_post_n4 = node1_vfs.diff(&node4_vfs);
