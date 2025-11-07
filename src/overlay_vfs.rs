@@ -8,16 +8,16 @@ pub fn create_and_test_overlay_fs() -> VfsResult<()> {
 
     lower_root
         .join("file_in_lower.txt")?
-        .create_file()? 
+        .create_file()?
         .write_all(b"Content from lower")?;
     lower_root
         .join("common_file.txt")?
-        .create_file()? 
+        .create_file()?
         .write_all(b"Common content from lower")?;
     lower_root.join("lower_dir")?.create_dir()?;
     lower_root
         .join("lower_dir/lower_file.txt")?
-        .create_file()? 
+        .create_file()?
         .write_all(b"File in lower_dir")?;
 
     // 2. Create an upper (read/write) filesystem
@@ -26,16 +26,16 @@ pub fn create_and_test_overlay_fs() -> VfsResult<()> {
 
     upper_root
         .join("file_in_upper.txt")?
-        .create_file()? 
+        .create_file()?
         .write_all(b"Content from upper")?;
     upper_root
         .join("common_file.txt")?
-        .create_file()? 
+        .create_file()?
         .write_all(b"Common content from upper (shadows lower)")?;
     upper_root.join("upper_dir")?.create_dir()?;
     upper_root
         .join("upper_dir/upper_file.txt")?
-        .create_file()? 
+        .create_file()?
         .write_all(b"File in upper_dir")?;
 
     // 3. Create the OverlayFS
@@ -48,7 +48,7 @@ pub fn create_and_test_overlay_fs() -> VfsResult<()> {
     // Read a file only in the lower layer
     overlay_root
         .join("file_in_lower.txt")?
-        .open_file()? 
+        .open_file()?
         .read_to_string(&mut buffer)?;
     assert_eq!(buffer, "Content from lower");
     buffer.clear();
@@ -56,7 +56,7 @@ pub fn create_and_test_overlay_fs() -> VfsResult<()> {
     // Read a file only in the upper layer
     overlay_root
         .join("file_in_upper.txt")?
-        .open_file()? 
+        .open_file()?
         .read_to_string(&mut buffer)?;
     assert_eq!(buffer, "Content from upper");
     buffer.clear();
@@ -64,7 +64,7 @@ pub fn create_and_test_overlay_fs() -> VfsResult<()> {
     // Read a file present in both (upper shadows lower)
     overlay_root
         .join("common_file.txt")?
-        .open_file()? 
+        .open_file()?
         .read_to_string(&mut buffer)?;
     assert_eq!(buffer, "Common content from upper (shadows lower)");
     buffer.clear();
@@ -72,12 +72,12 @@ pub fn create_and_test_overlay_fs() -> VfsResult<()> {
     // 5. Demonstrate writing to the overlay (modifies the upper layer)
     let new_file_path = overlay_root.join("new_file_on_overlay.txt")?;
     new_file_path
-        .create_file()? 
+        .create_file()?
         .write_all(b"This is a new file created on the overlay")?;
 
     let modified_common_file_path = overlay_root.join("common_file.txt")?;
     modified_common_file_path
-        .create_file()? 
+        .create_file()?
         .write_all(b"Modified content on overlay")?;
 
     // Verify the new file and modified file are in the upper layer
@@ -89,11 +89,17 @@ pub fn create_and_test_overlay_fs() -> VfsResult<()> {
     assert!(upper_entries.contains(&"common_file.txt".to_string()));
 
     let mut buffer_new = String::new();
-    upper_root.join("new_file_on_overlay.txt")?.open_file()?.read_to_string(&mut buffer_new)?;
+    upper_root
+        .join("new_file_on_overlay.txt")?
+        .open_file()?
+        .read_to_string(&mut buffer_new)?;
     assert_eq!(buffer_new, "This is a new file created on the overlay");
     buffer_new.clear();
 
-    upper_root.join("common_file.txt")?.open_file()?.read_to_string(&mut buffer_new)?;
+    upper_root
+        .join("common_file.txt")?
+        .open_file()?
+        .read_to_string(&mut buffer_new)?;
     assert_eq!(buffer_new, "Modified content on overlay");
 
     // Verify the lower layer remains unchanged
@@ -106,7 +112,10 @@ pub fn create_and_test_overlay_fs() -> VfsResult<()> {
     assert!(!lower_entries.contains(&"new_file_on_overlay.txt".to_string()));
 
     let mut buffer_lower = String::new();
-    lower_root.join("common_file.txt")?.open_file()?.read_to_string(&mut buffer_lower)?;
+    lower_root
+        .join("common_file.txt")?
+        .open_file()?
+        .read_to_string(&mut buffer_lower)?;
     assert_eq!(buffer_lower, "Common content from lower");
 
     Ok(())

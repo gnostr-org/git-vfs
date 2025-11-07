@@ -1,6 +1,6 @@
 // =================================================================
 // FILE: src/memory_vfs.rs
-// ACTION: FIX: Converted println! string to a raw string literal (r"...") 
+// ACTION: FIX: Converted println! string to a raw string literal (r"...")
 //               to resolve the unknown escape character error (\D).
 // =================================================================
 
@@ -10,7 +10,7 @@ use vfs::{MemoryFS, VfsPath, VfsResult};
 use std::thread;
 use std::time::Duration;
 // Required for safe, shared state (delta calculation):
-use std::sync::Mutex; 
+use std::sync::Mutex;
 
 // --- TYPE DEFINITIONS AND GLOBAL STATE ---
 
@@ -31,56 +31,60 @@ static LAST_MEMORY_STATS: Mutex<MemoryStats> = Mutex::new(MemoryStats {
     active: 0,
 });
 
-
 // --- CONDITIONAL ALLOCATOR SETUP ---
 #[cfg(feature = "memory_profiling")]
 #[global_allocator]
 static ALLOC: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
-
 // --- MEMORY INTROSPECTION FUNCTION ---
 #[cfg(feature = "memory_profiling")]
 pub fn report_current_memory() -> Result<(), Box<dyn std::error::Error>> {
-    
-    let error_mapper = |e| -> Box<dyn std::error::Error> { format!("tikv-jemalloc-ctl stats error: {}", e).into() };
-    
+    let error_mapper = |e| -> Box<dyn std::error::Error> {
+        format!("tikv-jemalloc-ctl stats error: {}", e).into()
+    };
+
     // 1. Advance Epoch (CRUCIAL for fresh data)
-    tikv_jemalloc_ctl::epoch::advance()
-        .map_err(|e| -> Box<dyn std::error::Error> { format!("tikv-jemalloc-ctl epoch advance error: {}", e).into() })?;
-    
+    tikv_jemalloc_ctl::epoch::advance().map_err(|e| -> Box<dyn std::error::Error> {
+        format!("tikv-jemalloc-ctl epoch advance error: {}", e).into()
+    })?;
+
     // 2. Read Current Statistics
-    let current_resident = tikv_jemalloc_ctl::stats::resident::read()
-        .map_err(error_mapper)?;
-    let current_allocated = tikv_jemalloc_ctl::stats::allocated::read()
-        .map_err(error_mapper)?;
-    let current_active = tikv_jemalloc_ctl::stats::active::read()
-        .map_err(error_mapper)?;
-    
+    let current_resident = tikv_jemalloc_ctl::stats::resident::read().map_err(error_mapper)?;
+    let current_allocated = tikv_jemalloc_ctl::stats::allocated::read().map_err(error_mapper)?;
+    let current_active = tikv_jemalloc_ctl::stats::active::read().map_err(error_mapper)?;
+
     // 3. Calculate Delta ($\Delta$)
     let mut last_stats = LAST_MEMORY_STATS.lock().unwrap();
 
     let delta_resident = current_resident as isize - last_stats.resident as isize;
     let delta_allocated = current_allocated as isize - last_stats.allocated as isize;
     let delta_active = current_active as isize - last_stats.active as isize;
-    
+
     // 4. Update Last Stats for the next cycle
     last_stats.resident = current_resident;
     last_stats.allocated = current_allocated;
     last_stats.active = current_active;
-    
+
     // 5. Print the Report including Delta
     // FIXED LINE 74: Converted to raw string literal (r"...")
     if delta_resident != current_resident as isize {
-        println!(r"[MEM REPORT] RSS: {} ($\Delta$: {:+}) | Allocated: {} ($\Delta$: {:+}) | Active: {} ($\Delta$: {:+})", 
-             current_resident, delta_resident, 
-             current_allocated, delta_allocated, 
-             current_active, delta_active);
+        println!(
+            r"[MEM REPORT] RSS: {} ($\Delta$: {:+}) | Allocated: {} ($\Delta$: {:+}) | Active: {} ($\Delta$: {:+})",
+            current_resident,
+            delta_resident,
+            current_allocated,
+            delta_allocated,
+            current_active,
+            delta_active
+        );
     } else {
-         // FIXED LINE 78: Converted to raw string literal (r"...")
-         println!(r"[MEM REPORT] RSS: {} | Allocated: {} | Active: {} (Initial Cycle)", 
-             current_resident, current_allocated, current_active);
+        // FIXED LINE 78: Converted to raw string literal (r"...")
+        println!(
+            r"[MEM REPORT] RSS: {} | Allocated: {} | Active: {} (Initial Cycle)",
+            current_resident, current_allocated, current_active
+        );
     }
-    
+
     Ok(())
 }
 
@@ -90,7 +94,6 @@ pub fn report_current_memory() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-
 // --- POLLING THREAD FUNCTION ---
 #[cfg(feature = "memory_profiling")]
 fn start_memory_polling_thread() -> thread::JoinHandle<()> {
@@ -98,7 +101,7 @@ fn start_memory_polling_thread() -> thread::JoinHandle<()> {
         loop {
             // Report memory usage every 5 seconds
             match report_current_memory() {
-                Ok(_) => {},
+                Ok(_) => {}
                 Err(e) => eprintln!("Memory polling error: {}", e),
             }
             thread::sleep(Duration::from_secs(5));
@@ -106,16 +109,14 @@ fn start_memory_polling_thread() -> thread::JoinHandle<()> {
     })
 }
 
-
 pub fn create_and_test_memory_fs() -> VfsResult<()> {
-    
     // --- START POLLING ---
     #[cfg(feature = "memory_profiling")]
     let _polling_handle = start_memory_polling_thread();
-    
+
     // --- EXECUTE VFS OPERATIONS ---
     println!("\nStarting VFS Operations...");
-    
+
     let fs = MemoryFS::new();
     let root: VfsPath = fs.into();
 
@@ -144,6 +145,6 @@ pub fn create_and_test_memory_fs() -> VfsResult<()> {
     readme_file.flush()?;
 
     println!("VFS Operations Complete. Memory polling continues in background every 5s.");
-    
+
     Ok(())
 }

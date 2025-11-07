@@ -17,16 +17,16 @@ pub fn create_and_test_altroot_fs() -> VfsResult<()> {
     physical_fs.join("data")?.create_dir()?;
     physical_fs
         .join("data/file1.txt")?
-        .create_file()? 
+        .create_file()?
         .write_all(b"Content of file1")?;
     physical_fs.join("data/subdir")?.create_dir()?;
     physical_fs
         .join("data/subdir/file2.txt")?
-        .create_file()? 
+        .create_file()?
         .write_all(b"Content of file2")?;
     physical_fs
         .join("other_file.txt")?
-        .create_file()? 
+        .create_file()?
         .write_all(b"This file is outside altroot")?;
 
     // 3. Create an AltrootFS instance, with its root set to "/data" within the physical_fs
