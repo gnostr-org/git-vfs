@@ -1,65 +1,87 @@
 // =================================================================
 // FILE: src/memory_vfs.rs
-// ACTION: FIX: Change global allocator and control source to TiKV crates.
+// ACTION: Full example implementing continuous memory polling using TiKV Jemalloc crates.
 // =================================================================
 
 use std::io::{Read, Write};
 use vfs::{MemoryFS, VfsPath, VfsResult};
+// Required for polling:
+use std::thread;
+use std::time::Duration; 
 
 // --- CONDITIONAL ALLOCATOR SETUP ---
-// FIXED E0412/E0425: Import Jemalloc from the highly compatible `tikv-jemallocator` crate.
+// Uses the highly compatible `tikv-jemallocator` for the global allocator.
 #[cfg(feature = "memory_profiling")]
 #[global_allocator]
 static ALLOC: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
 
 // --- MEMORY INTROSPECTION FUNCTION ---
-// Now uses `tikv_jemalloc_ctl` for statistics.
+// This function reads and prints the current memory statistics using tikv-jemalloc-ctl.
 #[cfg(feature = "memory_profiling")]
-pub fn report_memory_usage() -> Result<(), Box<dyn std::error::Error>> {
-    println!("\n--- MemoryFS Heap Introspection (tikv-jemalloc) ---");
-
-    // Explicit type casting ensures type ambiguity is resolved.
-    let error_mapper = |e| -> Box<dyn std::error::Error> { format!("tikv-jemalloc-ctl error: {}", e).into() };
-
-    // Total Resident Set Size (RSS): amount of memory mapped by the allocator.
+pub fn report_current_memory() -> Result<(), Box<dyn std::error::Error>> {
+    
+    // Define the error mapping closure once for the stats read calls.
+    let error_mapper = |e| -> Box<dyn std::error::Error> { format!("tikv-jemalloc-ctl stats error: {}", e).into() };
+    
+    // CRUCIAL: Advance the epoch to force cached allocator statistics to update.
+    // FIX E0283: Explicitly cast the closure return type to resolve type ambiguity.
+    tikv_jemalloc_ctl::epoch::advance()
+        .map_err(|e| -> Box<dyn std::error::Error> { format!("tikv-jemalloc-ctl epoch advance error: {}", e).into() })?;
+    
+    // Read statistics 
     let resident = tikv_jemalloc_ctl::stats::resident::read()
         .map_err(error_mapper)?;
-    println!("Total Resident Set Size (RSS): {} bytes", resident);
-
-    // Total Allocated Bytes (Active Heap): memory currently allocated by the application.
     let allocated = tikv_jemalloc_ctl::stats::allocated::read()
         .map_err(error_mapper)?;
-    println!("Total Allocated Bytes (Active Heap): {} bytes", allocated);
-
-    // Total Active Bytes (Used/Touched): memory in active pages.
     let active = tikv_jemalloc_ctl::stats::active::read()
         .map_err(error_mapper)?;
-    println!("Total Active Bytes (Used/Touched): {} bytes", active);
-
-    println!("--------------------------------------------------");
+    
+    // Print the report
+    println!("[MEM REPORT] RSS: {} bytes, Allocated: {} bytes, Active: {} bytes", 
+             resident, allocated, active);
+    
     Ok(())
 }
 
 // Dummy function for when profiling is disabled
 #[cfg(not(feature = "memory_profiling"))]
-pub fn report_memory_usage() -> Result<(), Box<dyn std::error::Error>> {
-    println!("\nMemory profiling is not enabled. Compile with --features memory_profiling.");
+pub fn report_current_memory() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
+}
+
+
+// --- POLLING THREAD FUNCTION ---
+#[cfg(feature = "memory_profiling")]
+fn start_memory_polling_thread() -> thread::JoinHandle<()> {
+    thread::spawn(|| {
+        loop {
+            // Report memory usage every 5 seconds
+            match report_current_memory() {
+                Ok(_) => {},
+                Err(e) => eprintln!("Memory polling error: {}", e),
+            }
+            thread::sleep(Duration::from_secs(5));
+        }
+    })
 }
 
 
 pub fn create_and_test_memory_fs() -> VfsResult<()> {
     
-    let _ = report_memory_usage(); 
+    // --- START POLLING ---
+    #[cfg(feature = "memory_profiling")]
+    let _polling_handle = start_memory_polling_thread();
+    
+    // --- EXECUTE VFS OPERATIONS ---
+    println!("\nStarting VFS Operations...");
     
     let fs = MemoryFS::new();
     let root: VfsPath = fs.into();
 
-    let _ = report_memory_usage(); 
-
     let data_dir = root.join("data")?;
     data_dir.create_dir_all()?;
+    assert!(data_dir.exists()?);
 
     let config_path = data_dir.join("config.txt")?;
     let config_content = "{\"setting\": \"value\", \"enabled\": true}";
@@ -67,8 +89,6 @@ pub fn create_and_test_memory_fs() -> VfsResult<()> {
     let mut file = config_path.create_file()?;
     file.write_all(config_content.as_bytes())?;
     file.flush()?;
-
-    let _ = report_memory_usage(); 
 
     let mut read_content = String::new();
     let mut read_file = config_path.open_file()?;
@@ -83,7 +103,7 @@ pub fn create_and_test_memory_fs() -> VfsResult<()> {
     readme_file.write_all(readme_content.as_bytes())?;
     readme_file.flush()?;
 
-    let _ = report_memory_usage(); 
-
+    println!("VFS Operations Complete. Memory polling continues in background every 5s.");
+    
     Ok(())
 }
