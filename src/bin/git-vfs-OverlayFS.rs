@@ -2,7 +2,6 @@
 
 use vfs::{MemoryFS, OverlayFS, VfsPath, VfsResult};
 use std::io::{Read, Write};
-use std::ffi::OsStr;
 
 fn main() -> VfsResult<()> {
     // 1. Create a lower (read-only) filesystem
