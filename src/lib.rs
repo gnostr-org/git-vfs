@@ -372,8 +372,8 @@ mod tests {
 
     #[test]
     fn test_get_object_not_found() {
-        let git_vfs = GitVfs::new();
-        let result = git_vfs.get_object("non_existent_hash");
+        let _git_vfs = GitVfs::new();
+        let result = _git_vfs.get_object("non_existent_hash");
         assert_eq!(result, Err(GitVfsError::NotFound));
     }
 
@@ -392,8 +392,8 @@ mod tests {
 
     #[test]
     fn test_get_ref_not_found() {
-        let git_vfs = GitVfs::new();
-        let result = git_vfs.get_ref("refs/heads/non_existent");
+        let _git_vfs = GitVfs::new();
+        let result = _git_vfs.get_ref("refs/heads/non_existent");
         assert_eq!(result, Err(GitVfsError::NotFound));
     }
 
@@ -442,8 +442,8 @@ mod tests {
 
     #[test]
     fn test_get_head_when_none_set() {
-        let git_vfs = GitVfs::new();
-        let result = git_vfs.get_head();
+        let _git_vfs = GitVfs::new();
+        let result = _git_vfs.get_head();
         assert_eq!(result, Err(GitVfsError::NotFound));
     }
 
@@ -475,7 +475,7 @@ mod tests {
 
     #[test]
     fn test_data_sha256_byte_slice() {
-        let mut git_vfs = GitVfs::new();
+        let git_vfs = GitVfs::new();
         let data: &[u8] = b"test data";
         let expected_hash = "916f0027a575074ce72a331777c3478d6513f786a591bd892da1a577bf2335f9";
         let actual_hash = git_vfs.data_sha256(data);
@@ -484,7 +484,7 @@ mod tests {
 
     #[test]
     fn test_data_sha256_string() {
-        let mut git_vfs = GitVfs::new();
+        let git_vfs = GitVfs::new();
         let data = String::from("hello world");
         let expected_hash = "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9";
         let actual_hash = git_vfs.data_sha256(data.as_bytes());
@@ -493,7 +493,7 @@ mod tests {
 
     #[test]
     fn test_data_sha256_empty_data() {
-        let mut git_vfs = GitVfs::new();
+        let git_vfs = GitVfs::new();
         let data: &[u8] = b"";
         let expected_hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
         let actual_hash = git_vfs.data_sha256(data);
@@ -502,7 +502,7 @@ mod tests {
 
     #[test]
     fn test_data_sha256_multiple_updates() {
-        let mut git_vfs = GitVfs::new();
+        let git_vfs = GitVfs::new();
         let mut hasher = Sha256::new();
         hasher.update(b"part one ");
         hasher.update(b"part two");
@@ -619,7 +619,7 @@ mod tests {
         // --- Now, reverse the roles: Client becomes server, Server becomes client ---
         println!("\n--- Reversing roles: Original Client becomes New Server ---");
         let mut vfs_server_new = GitVfs::new(); // This will be the new server
-        let mut vfs_client_new = GitVfs::new(); // This will be the new client
+        let _vfs_client_new = GitVfs::new(); // This will be the new client
 
         // Populate new server state (using original client's state as source)
         println!("\n--- New Server (Original Client): Initializing ---");
@@ -697,15 +697,15 @@ mod tests {
 
     #[test]
     fn test_overlay_fs_module() -> GitVfsResult<()> {
-        crate::overlay_vfs::create_and_test_overlay_fs().map_err(|e| GitVfsError::InvalidOperation)
+        crate::overlay_vfs::create_and_test_overlay_fs().map_err(|_e| GitVfsError::InvalidOperation)
     }
 
     #[test]
     fn test_altroot_fs_module() -> GitVfsResult<()> {
-        crate::altroot_vfs::create_and_test_altroot_fs().map_err(|e| GitVfsError::InvalidOperation)
+        crate::altroot_vfs::create_and_test_altroot_fs().map_err(|_e| GitVfsError::InvalidOperation)
     }
 
     #[test]
     fn test_memory_fs_module() -> GitVfsResult<()> {
-        crate::memory_vfs::create_and_test_memory_fs().map_err(|e| GitVfsError::InvalidOperation)
+        crate::memory_vfs::create_and_test_memory_fs().map_err(|_e| GitVfsError::InvalidOperation)
     }
