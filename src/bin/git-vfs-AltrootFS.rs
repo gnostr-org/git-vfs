@@ -1,6 +1,6 @@
-use vfs::{VfsPath, PhysicalFS, AltrootFS, VfsError, error::VfsErrorKind};
-use std::path::PathBuf;
 use std::io::{Read, Write};
+use std::path::PathBuf;
+use vfs::{AltrootFS, PhysicalFS, VfsError, VfsPath, error::VfsErrorKind};
 
 type VfsResult<T> = Result<T, VfsError>;
 
@@ -17,10 +17,19 @@ fn main() -> VfsResult<()> {
 
     // Create some files and directories within the physical filesystem
     physical_fs.join("data")?.create_dir()?;
-    physical_fs.join("data/file1.txt")?.create_file()?.write_all(b"Content of file1")?;
+    physical_fs
+        .join("data/file1.txt")?
+        .create_file()?
+        .write_all(b"Content of file1")?;
     physical_fs.join("data/subdir")?.create_dir()?;
-    physical_fs.join("data/subdir/file2.txt")?.create_file()?.write_all(b"Content of file2")?;
-    physical_fs.join("other_file.txt")?.create_file()?.write_all(b"This file is outside altroot")?;
+    physical_fs
+        .join("data/subdir/file2.txt")?
+        .create_file()?
+        .write_all(b"Content of file2")?;
+    physical_fs
+        .join("other_file.txt")?
+        .create_file()?
+        .write_all(b"This file is outside altroot")?;
 
     println!("PhysicalFS structure created at: {:?}", temp_dir);
     println!("- /data/file1.txt");
@@ -53,26 +62,29 @@ fn main() -> VfsResult<()> {
     // Attempt to access a file outside the AltrootFS's defined root
     let outside_file = altroot_fs.join("../other_file.txt"); // This path is relative to the altroot
 
-
-match outside_file {
-         Ok(path) => {
-             if path.exists()? {
-                 println!("Unexpectedly found: {:?}", path);
-             } else {
-                 // Line 3
-                 println!("Correctly did not find /other_file.txt (via AltrootFS, it's outside its root).");
-             }
-         },
-         // CORRECTED LINE BELOW: Using the matches! macro to check the enum variant
-         Err(e) if matches!(*e.kind(), VfsErrorKind::FileNotFound) => {
-             // Line 1
-             println!("Correctly did not find /other_file.txt (via AltrootFS, it's outside its root).");
-         },
-         Err(e) => {
-             // Line 4
-             println!("Received unexpected error: {:?}", e);
-         }
-     }
+    match outside_file {
+        Ok(path) => {
+            if path.exists()? {
+                println!("Unexpectedly found: {:?}", path);
+            } else {
+                // Line 3
+                println!(
+                    "Correctly did not find /other_file.txt (via AltrootFS, it's outside its root)."
+                );
+            }
+        }
+        // CORRECTED LINE BELOW: Using the matches! macro to check the enum variant
+        Err(e) if matches!(*e.kind(), VfsErrorKind::FileNotFound) => {
+            // Line 1
+            println!(
+                "Correctly did not find /other_file.txt (via AltrootFS, it's outside its root)."
+            );
+        }
+        Err(e) => {
+            // Line 4
+            println!("Received unexpected error: {:?}", e);
+        }
+    }
 
     // Clean up the temporary directory
     std::fs::remove_dir_all(&temp_dir)?;

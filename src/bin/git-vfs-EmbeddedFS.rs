@@ -26,7 +26,7 @@ fn main() -> VfsResult<()> {
         Ok(mut file) => {
             file.read_to_string(&mut buffer)?;
             println!("Content of 'hello.txt': '{}'", buffer);
-        },
+        }
         Err(e) => println!("Error reading hello.txt: {}", e),
     }
     buffer.clear();
@@ -41,7 +41,7 @@ fn main() -> VfsResult<()> {
             } else {
                 println!("   Could not list data directory contents.");
             }
-        },
+        }
         Err(e) => println!("Error joining path to data directory: {}", e),
     }
 
@@ -50,7 +50,7 @@ fn main() -> VfsResult<()> {
         Ok(mut file) => {
             file.read_to_string(&mut buffer)?;
             println!("Content of 'data/config.json': '{}'", buffer);
-        },
+        }
         Err(e) => println!("Error reading data/config.json: {}", e),
     }
 

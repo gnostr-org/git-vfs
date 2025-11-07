@@ -47,14 +47,14 @@ async-trait = "0.1.80"
 chrono = { version = "0.4", features = ["serde"] }
 data-encoding = "2.9.0"
 futures = "0.3"
+
+# --- Git2 Dependency ---
+git2 = "0.18.3"
 hex = { version = "0.4.3", features = ["serde"] }
 libp2p = { version = "0.53", features = ["tokio", "kad", "request-response", "mdns", "macros", "yamux", "tcp", "identify", "noise"] }
 libp2p-core = "0.43.1"
 libp2p-noise = "0.46.1"
 libp2p-yamux = "0.45.2"
-
-# --- Git2 Dependency ---
-git2 = "0.18.3"
 
 # --- Your Existing Dependencies ---
 rust-embed = { version = "8.9.0", features = ["interpolate-folder-path"] } # Add this line

@@ -1,8 +1,7 @@
-
 // --- IMPORTS ---
 use git_vfs::GitVfs;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use tokio::time::sleep;
 
@@ -43,7 +42,9 @@ async fn main() {
 
     // Spawn a task to listen for Ctrl-C
     tokio::spawn(async move {
-        tokio::signal::ctrl_c().await.expect("Failed to listen for ctrl-c");
+        tokio::signal::ctrl_c()
+            .await
+            .expect("Failed to listen for ctrl-c");
         println!("\nCtrl-C received, shutting down.");
         r_signal.store(false, Ordering::SeqCst);
     });
@@ -68,8 +69,6 @@ async fn main() {
         println!("--- Starting loop iteration ---");
         println!("\n--- Cycle {} ---", commit_counter);
         println!("  -> Starting sleep...");
-
-
 
         sleep(Duration::from_secs(3)).await;
         println!("  -> Sleep finished. Continuing to next cycle.");

@@ -1,7 +1,7 @@
 // src/bin/git-vfs-MemoryFS.rs
 
-use vfs::{MemoryFS, VfsPath};
-use std::io::Write; // Import Write trait for flush
+use std::io::Write;
+use vfs::{MemoryFS, VfsPath}; // Import Write trait for flush
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("---\nGitVfs MemoryFS Example ---");
@@ -21,7 +21,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n2. Writing to 'data/config.txt'...");
     let config_path = data_dir.join("config.txt")?;
     let config_content = "{\"setting\": \"value\", \"enabled\": true}";
-    
+
     // Open file for writing (create if it doesn't exist)
     let mut file = config_path.create_file()?;
     file.write_all(config_content.as_bytes())?;
@@ -42,7 +42,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // --- Create another file in the root ---
     println!("\n4. Creating 'README.md' in root...");
     let readme_path = root.join("README.md")?;
-    let readme_content = "# GitVFS MemoryFS Example\nThis demonstrates in-memory file system operations.";
+    let readme_content =
+        "# GitVFS MemoryFS Example\nThis demonstrates in-memory file system operations.";
     let mut readme_file = readme_path.create_file()?;
     readme_file.write_all(readme_content.as_bytes())?;
     readme_file.flush()?; // Add flush for README.md as well
