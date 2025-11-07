@@ -3,6 +3,9 @@ use std::io::Write;
 use std::path::Path;
 use std::process::Command;
 
+// try:
+// cargo build --features memory_profiling -j8
+
 fn main() {
     let target_path = Path::new("src/empty");
 
