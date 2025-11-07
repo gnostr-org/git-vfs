@@ -65,13 +65,16 @@ async fn main() {
 
     // --- MAIN LOOP for continuous commits and sync ---
     while running.load(Ordering::SeqCst) {
+        println!("--- Starting loop iteration ---");
         println!("\n--- Cycle {} ---", commit_counter);
-
+        println!("  -> Starting sleep...");
 
 
 
         sleep(Duration::from_secs(3)).await;
+        println!("  -> Sleep finished. Continuing to next cycle.");
         commit_counter += 1;
+        println!("--- Loop iteration finished ---");
     }
 
     println!("\n--- Live Test Finished ---");
