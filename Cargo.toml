@@ -8,8 +8,8 @@ edition = "2024"
 ## path = "src/bin/git_vfs_advanced_example.rs"
 
 [[bin]]
-name = "git-vfs-MemoryFS"
-path = "src/bin/git-vfs-MemoryFS.rs"
+name = "git-vfs-EmbeddedFS"
+path = "src/bin/git-vfs-EmbeddedFS.rs"
 
 [[bin]]
 name = "git-vfs-basic"
@@ -53,6 +53,7 @@ libp2p-yamux = "0.45.2"
 git2 = "0.18.3"
 
 # --- Your Existing Dependencies ---
+rust-embed = { version = "8.9.0", features = ["interpolate-folder-path"] } # Add this line
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sha2 = { version = "0.10.9", features = ["oid"] }
