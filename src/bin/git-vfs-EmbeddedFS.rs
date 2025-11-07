@@ -1,4 +1,5 @@
 use vfs::VfsResult;
+use vfs::error::VfsErrorKind;
 use git_vfs::embedded_vfs;
 use git2::{Repository, BranchType, ObjectType};
 
@@ -10,8 +11,7 @@ fn main() -> VfsResult<()> {
 
     println!("Extracted .git to: {:?}", repo_path);
 
-    let repo = Repository::open(repo_path).map_err(|e| vfs::VfsError::Other(e.into()))?;
-
+    let repo = Repository::open(repo_path).map_err(|e| vfs::VfsError::from(VfsErrorKind::Other(format!("Git error: {}", e))))?;
     println!("\n--- Repository HEAD ---");
     match repo.head() {
         Ok(head) => println!("HEAD: {}", head.name().unwrap_or("detached")),
@@ -19,23 +19,23 @@ fn main() -> VfsResult<()> {
     }
 
     println!("\n--- Branches ---");
-    let branches = repo.branches(None).map_err(|e| vfs::VfsError::Other(e.into()))?;
+    let branches = repo.branches(None).map_err(|e| vfs::VfsError::from(VfsErrorKind::Other(format!("Git error: {}", e))))?;
     for branch in branches {
-        let (branch, branch_type) = branch.map_err(|e| vfs::VfsError::Other(e.into()))?;
-        let name = branch.name().map_err(|e| vfs::VfsError::Other(e.into()))?.unwrap_or("invalid");
-        let commit = branch.get().peel_to_commit().map_err(|e| vfs::VfsError::Other(e.into()))?;
+        let (branch, branch_type) = branch.map_err(|e| vfs::VfsError::from(VfsErrorKind::Other(format!("Git error: {}", e))))?;
+        let name = branch.name().map_err(|e| vfs::VfsError::from(VfsErrorKind::Other(format!("Git error: {}", e))))?;
+        let commit = branch.get().peel_to_commit().map_err(|e| vfs::VfsError::from(VfsErrorKind::Other(format!("Git error: {}", e))))?;
         println!("  {} {}: {}", match branch_type {
             BranchType::Local => "Local",
             BranchType::Remote => "Remote",
-        }, name, commit.id());
+        }, name.unwrap_or("unnamed branch"), commit.id());
     }
 
     println!("\n--- Commit Log ---");
-    let mut revwalk = repo.revwalk().map_err(|e| vfs::VfsError::Other(e.into()))?;
-    revwalk.push_head().map_err(|e| vfs::VfsError::Other(e.into()))?;
+    let mut revwalk = repo.revwalk().map_err(|e| vfs::VfsError::from(VfsErrorKind::Other(format!("Git error: {}", e))))?;
+    revwalk.push_head().map_err(|e| vfs::VfsError::from(VfsErrorKind::Other(format!("Git error: {}", e))))?;
     for oid in revwalk {
-        let oid = oid.map_err(|e| vfs::VfsError::Other(e.into()))?;
-        let commit = repo.find_commit(oid).map_err(|e| vfs::VfsError::Other(e.into()))?;
+        let oid = oid.map_err(|e| vfs::VfsError::from(VfsErrorKind::Other(format!("Git error: {}", e))))?;
+        let commit = repo.find_commit(oid).map_err(|e| vfs::VfsError::from(VfsErrorKind::Other(format!("Git error: {}", e))))?;
         println!("  Commit: {}", commit.id());
         println!("  Author: {} <{}>", commit.author().name().unwrap_or("unknown"), commit.author().email().unwrap_or("unknown"));
         println!("  Date:   {}", commit.author().when().seconds());
