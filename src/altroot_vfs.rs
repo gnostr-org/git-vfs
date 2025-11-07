@@ -1,6 +1,6 @@
 use std::io::{Read, Write};
 use std::path::PathBuf;
-use vfs::{AltrootFS, PhysicalFS, VfsError, VfsPath, VfsResult, error::VfsErrorKind};
+use vfs::{AltrootFS, PhysicalFS, VfsPath, VfsResult, error::VfsErrorKind};
 
 pub fn create_and_test_altroot_fs() -> VfsResult<()> {
     // 1. Create a temporary directory for the underlying physical filesystem
