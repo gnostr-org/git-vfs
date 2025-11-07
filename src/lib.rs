@@ -13,6 +13,7 @@ use std::io;
 
 pub mod overlay_vfs;
 pub mod altroot_vfs;
+pub mod memory_vfs;
 
 #[derive(Debug, PartialEq)]
 pub enum GitVfsError {
