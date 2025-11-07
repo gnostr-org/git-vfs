@@ -2,16 +2,16 @@ use rust_embed::RustEmbed;
 use vfs::{EmbeddedFS, VfsPath, VfsResult};
 
 #[derive(RustEmbed, Debug)]
-#[folder = "$CARGO_MANIFEST_DIR/embedded_files"]
+#[folder = "$CARGO_MANIFEST_DIR/src/empty/.git"]
 pub struct Asset;
 
 pub fn create_and_test_embedded_fs() -> VfsResult<()> {
-    println!("-- EmbeddedFS Example --");
+    println!("-- Embedded .git FS Example ---");
 
     let embedded_fs = EmbeddedFS::<Asset>::new();
     let root: VfsPath = embedded_fs.into();
 
-    println!("\n--- Listing Root Directory ---");
+    println!("\n--- Listing Root Directory (.git) ---");
     if let Ok(entries) = root.read_dir() {
         for entry in entries {
             println!("{}", entry.filename());
@@ -20,38 +20,36 @@ pub fn create_and_test_embedded_fs() -> VfsResult<()> {
         println!("   Could not list root directory contents.");
     }
 
-    println!("\n--- Reading hello.txt ---");
+    println!("\n--- Reading HEAD ---");
     let mut buffer = String::new();
-    match root.join("hello.txt")?.open_file() {
+    match root.join("HEAD")?.open_file() {
         Ok(mut file) => {
             file.read_to_string(&mut buffer)?;
-            println!("Content of 'hello.txt': '{}'", buffer);
+            println!("Content of 'HEAD': '{}'", buffer);
         }
-        Err(e) => println!("Error reading hello.txt: {}", e),
+        Err(e) => println!("Error reading HEAD: {}", e),
     }
     buffer.clear();
 
-    println!("\n--- Listing data Directory ---");
-    match root.join("data") {
-        Ok(data_dir) => {
-            if let Ok(entries) = data_dir.read_dir() {
+    println!("\n--- Listing refs Directory ---");
+    match root.join("refs") {
+        Ok(refs_dir) => {
+            if let Ok(entries) = refs_dir.read_dir() {
                 for entry in entries {
                     println!("{}", entry.filename());
                 }
-            } else {
-                println!("   Could not list data directory contents.");
             }
         }
-        Err(e) => println!("Error joining path to data directory: {}", e),
+        Err(e) => println!("Error joining path to refs directory: {}", e),
     }
 
-    println!("\n--- Reading data/config.json ---");
-    match root.join("data/config.json")?.open_file() {
+    println!("\n--- Reading config ---");
+    match root.join("config")?.open_file() {
         Ok(mut file) => {
             file.read_to_string(&mut buffer)?;
-            println!("Content of 'data/config.json': '{}'", buffer);
+            println!("Content of 'config': '{}'", buffer);
         }
-        Err(e) => println!("Error reading data/config.json: {}", e),
+        Err(e) => println!("Error reading config: {}", e),
     }
 
     Ok(())
