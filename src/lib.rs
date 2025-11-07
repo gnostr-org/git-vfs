@@ -14,6 +14,7 @@ use std::io;
 pub mod altroot_vfs;
 pub mod memory_vfs;
 pub mod overlay_vfs;
+pub mod embedded_vfs;
 
 #[derive(Debug, PartialEq)]
 pub enum GitVfsError {
@@ -867,4 +868,9 @@ fn test_altroot_fs_module() -> GitVfsResult<()> {
 #[test]
 fn test_memory_fs_module() -> GitVfsResult<()> {
     crate::memory_vfs::create_and_test_memory_fs().map_err(|_e| GitVfsError::InvalidOperation)
+}
+
+#[test]
+fn test_embedded_fs_module() -> GitVfsResult<()> {
+    crate::embedded_vfs::create_and_test_embedded_fs().map_err(|_e| GitVfsError::InvalidOperation)
 }
