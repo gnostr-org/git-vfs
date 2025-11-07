@@ -9,6 +9,7 @@ use tokio::time::sleep;
 // --- HELPER FUNCTIONS ---
 
 // Helper to print the state of a GitVfs instance
+#[allow(dead_code)]
 fn print_vfs_state(vfs: &GitVfs, node_name: &str) {
     println!("--- {} VFS State ---", node_name);
     if let Ok(head) = vfs.get_head() {
@@ -37,8 +38,8 @@ async fn main() {
     let r_keypress = running.clone();
 
     // --- CENTRAL REPOSITORY INITIALIZATION ---
-    let mut central_repo = GitVfs::new();
-    let main_ref = "refs/heads/main";
+    let mut _central_repo = GitVfs::new();
+    let _main_ref = "refs/heads/main";
 
     // Spawn a task to listen for Ctrl-C
     tokio::spawn(async move {
