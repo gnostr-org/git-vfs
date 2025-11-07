@@ -30,12 +30,11 @@ impl From<git2::Error> for GitVfsError {
 impl From<GitVfsError> for VfsError {
     fn from(err: GitVfsError) -> Self {
         match err {
-            GitVfsError::NotFound => VfsErrorKind::FileNotFound.into(),
+            GitVfsError::NotFound => VfsError::from(VfsErrorKind::FileNotFound),
             GitVfsError::AlreadyExists => VfsErrorKind::FileExists.into(),
             GitVfsError::InvalidOperation => {
-                VfsErrorKind::Other(String::from("Invalid Git operation"))
-                    .into()
-                    .with_source(Box::new(err))
+                VfsError::from(VfsErrorKind::Other(String::new())) // Pass empty string to constructor
+                    .with_context(|| "Invalid Git operation")
             }
         }
     }
