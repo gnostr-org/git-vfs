@@ -10,6 +10,7 @@ use libp2p::{
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::io;
+use tempfile::tempdir;
 use vfs::{VfsError, error::VfsErrorKind};
 
 pub mod altroot_vfs;
@@ -74,6 +75,62 @@ impl GitVfs {
             refs: HashMap::new(),
             head: None,
         }
+    }
+
+    pub fn init_repo(&mut self, main_ref: &str) -> GitVfsResult<()> {
+        // Create a temporary git repository for git2 operations
+        let dir = tempdir().map_err(|_e| GitVfsError::InvalidOperation)?;
+        let path = dir.path();
+
+        // Initialize a BARE repository
+        let repo = git2::Repository::init_bare(path).map_err(GitVfsError::from)?;
+
+        // Define the Target Time (Unix Epoch)
+        let epoch_seconds: i64 = 0;
+        let offset_minutes: i32 = 0;
+        let custom_time = git2::Time::new(epoch_seconds, offset_minutes);
+
+        // Create Author and Committer Signatures with Custom Time
+        let author = git2::Signature::new(
+            "A. U. Thor",
+            "author@example.com",
+            &custom_time,
+        ).map_err(GitVfsError::from)?;
+        
+        let committer = git2::Signature::new(
+            "C. O. Mitter",
+            "committer@example.com",
+            &custom_time,
+        ).map_err(GitVfsError::from)?;
+
+        // Create an empty tree
+        let tree_builder = repo.treebuilder(None).map_err(GitVfsError::from)?;
+        let tree_oid = tree_builder.write().map_err(GitVfsError::from)?;
+        let tree = repo.find_tree(tree_oid).map_err(GitVfsError::from)?;
+
+        // Create the initial commit
+        let commit_oid = repo.commit(
+            None, // No reference to update (bare repo)
+            &author,
+            &committer,
+            "feat(init): Initial commit",
+            &tree,
+            &[], // No parents for the initial commit
+        ).map_err(GitVfsError::from)?;
+
+        // Get raw commit and tree object data from git2 and populate self (GitVfs)
+        let odb = repo.odb().map_err(GitVfsError::from)?;
+        let commit_data = odb.read(commit_oid).map_err(GitVfsError::from)?;
+        self.create_object(&commit_oid.to_string(), commit_data.data()).unwrap();
+
+        let tree_data = odb.read(tree_oid).map_err(GitVfsError::from)?;
+        self.create_object(&tree_oid.to_string(), tree_data.data()).unwrap();
+
+        // Set the main ref and HEAD in self (GitVfs)
+        self.create_ref(main_ref, &commit_oid.to_string()).unwrap();
+        self.set_head(main_ref).unwrap();
+
+        Ok(())
     }
 
     pub fn diff(&self, other: &GitVfs) -> Diff {
@@ -922,7 +979,26 @@ fn test_memory_fs_module() -> GitVfsResult<()> {
     crate::memory_vfs::create_and_test_memory_fs().map_err(|_e| GitVfsError::InvalidOperation)
 }
 
-#[test]
-fn test_embedded_fs_module() -> GitVfsResult<()> {
-    crate::embedded_vfs::create_and_test_embedded_fs().map_err(|_e| GitVfsError::InvalidOperation)
-}
+    #[test]
+    fn test_embedded_fs_module() -> GitVfsResult<()> {
+        crate::embedded_vfs::create_and_test_embedded_fs().map_err(|_e| GitVfsError::InvalidOperation)
+    }
+
+    #[test]
+    fn test_init_repo() -> GitVfsResult<()> {
+        let mut vfs = GitVfs::new();
+        let main_ref = "refs/heads/main";
+        vfs.init_repo(main_ref)?;
+
+        // Verify HEAD is set
+        assert_eq!(vfs.get_head().unwrap(), main_ref);
+
+        // Verify the main ref exists and points to a hash
+        let head_hash = vfs.get_ref(main_ref).unwrap();
+        assert!(!head_hash.is_empty());
+
+        // Verify the commit object exists
+        assert!(vfs.get_object(&head_hash).is_ok());
+
+        Ok(())
+    }
