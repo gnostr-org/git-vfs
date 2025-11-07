@@ -1,4 +1,4 @@
-use vfs::{VfsPath, PhysicalFS, VfsError};
+use vfs::{VfsPath, PhysicalFS/*, VfsError*/};
 
 fn main() -> Result<(), Box<dyn std::error::Error>>{
 let root: VfsPath = PhysicalFS::new(std::env::current_dir().unwrap()).into();

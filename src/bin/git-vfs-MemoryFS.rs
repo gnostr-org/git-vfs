@@ -6,7 +6,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("---\nGitVfs MemoryFS Example ---");
 
     // Initialize an in-memory file system
-    let mut fs = MemoryFS::new();
+    let /*mut*/ fs = MemoryFS::new();
     let root: VfsPath = fs.into(); // Convert MemoryFS to VfsPath
 
     // --- Create a directory ---

@@ -3,6 +3,38 @@ name = "git-vfs"
 version = "0.2.0"
 edition = "2024"
 
+## [[bin]]
+## name = "git_vfs_advanced_example"
+## path = "src/bin/git_vfs_advanced_example.rs"
+
+[[bin]]
+name = "git-vfs-MemoryFS"
+path = "src/bin/git-vfs-MemoryFS.rs"
+
+[[bin]]
+name = "git-vfs-basic"
+path = "src/bin/git-vfs-basic.rs"
+
+[[bin]]
+name = "git2_live_test"
+path = "src/bin/git2_live_test.rs"
+
+[[bin]]
+name = "git_vfs_live_test"
+path = "src/bin/git_vfs_live_test.rs"
+
+[[bin]]
+name = "git_vfs_live_test-swarm"
+path = "src/bin/git_vfs_live_test-swarm.rs"
+
+[[bin]]
+name = "git_vfs_v1"
+path = "src/bin/git_vfs_v1.rs"
+
+[[bin]]
+name = "git_vfs_v2"
+path = "src/bin/git_vfs_v2.rs"
+
 [dependencies]
 async-std = { version = "1.12", features = ["async-channel", "attributes"] }
 
