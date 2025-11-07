@@ -6,11 +6,13 @@
 
 use std::io::{Read, Write};
 use vfs::{MemoryFS, VfsPath, VfsResult};
-// Required for polling:
-use std::thread;
-use std::time::Duration;
-// Required for safe, shared state (delta calculation):
+
+#[cfg(feature = "memory_profiling")]
 use std::sync::Mutex;
+#[cfg(feature = "memory_profiling")]
+use std::thread; // FIX: Warning on unused import
+#[cfg(feature = "memory_profiling")]
+use std::time::Duration; // FIX: Warning on unused import // FIX: Warning on unused import
 
 // --- TYPE DEFINITIONS AND GLOBAL STATE ---
 
