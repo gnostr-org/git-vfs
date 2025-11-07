@@ -11,6 +11,10 @@ use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::io;
 
+
+//GEMINI this made the tests pass
+use vfs::VfsResult;
+
 pub mod overlay_vfs;
 pub mod altroot_vfs;
 pub mod memory_vfs;
@@ -696,11 +700,16 @@ mod tests {
 }
 
     #[test]
-    fn test_overlay_fs_module() -> VfsResult<()> {
-        crate::overlay_vfs::create_and_test_overlay_fs()
+    fn test_overlay_fs_module() -> GitVfsResult<()> {
+        crate::overlay_vfs::create_and_test_overlay_fs().map_err(|e| GitVfsError::InvalidOperation)
     }
 
     #[test]
-    fn test_altroot_fs_module() -> VfsResult<()> {
-        crate::altroot_vfs::create_and_test_altroot_fs()
+    fn test_altroot_fs_module() -> GitVfsResult<()> {
+        crate::altroot_vfs::create_and_test_altroot_fs().map_err(|e| GitVfsError::InvalidOperation)
+    }
+
+    #[test]
+    fn test_memory_fs_module() -> GitVfsResult<()> {
+        crate::memory_vfs::create_and_test_memory_fs().map_err(|e| GitVfsError::InvalidOperation)
     }
