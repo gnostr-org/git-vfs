@@ -1,12 +1,13 @@
 // src/bin/git-vfs-MemoryFS.rs
 
 use vfs::{MemoryFS, VfsPath};
+use std::io::Write; // Import Write trait for flush
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("---\nGitVfs MemoryFS Example ---");
 
     // Initialize an in-memory file system
-    let /*mut*/ fs = MemoryFS::new();
+    let fs = MemoryFS::new(); // Removed mut as fs is not directly used after into()
     let root: VfsPath = fs.into(); // Convert MemoryFS to VfsPath
 
     // --- Create a directory ---
@@ -24,6 +25,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Open file for writing (create if it doesn't exist)
     let mut file = config_path.create_file()?;
     file.write_all(config_content.as_bytes())?;
+    file.flush()?; // Add flush to ensure data is written
     println!("   Successfully wrote to 'data/config.txt'.");
 
     // --- Read from the file ---
@@ -43,11 +45,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let readme_content = "# GitVFS MemoryFS Example\nThis demonstrates in-memory file system operations.";
     let mut readme_file = readme_path.create_file()?;
     readme_file.write_all(readme_content.as_bytes())?;
+    readme_file.flush()?; // Add flush for README.md as well
     println!("   Successfully wrote to 'README.md'.");
 
-    // --- List directory contents ---
-    // Removed list_dir() call as it's not available.
-    // If directory listing is needed, a different approach or crate might be required.
+    // --- Skipping directory listing as list_dir() is not available. ---
     println!("\n5. Skipping directory listing as list_dir() is not available.");
 
     println!("\n--- MemoryFS Example Finished ---");
