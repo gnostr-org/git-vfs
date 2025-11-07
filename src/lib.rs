@@ -502,7 +502,7 @@ mod tests {
 
     #[test]
     fn test_data_sha256_multiple_updates() {
-        let git_vfs = GitVfs::new();
+        let _git_vfs = GitVfs::new();
         let mut hasher = Sha256::new();
         hasher.update(b"part one ");
         hasher.update(b"part two");
