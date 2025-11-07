@@ -9,13 +9,13 @@ use tempfile::TempDir;
 pub struct Asset;
 
 pub fn extract_embedded_git_to_temp_dir() -> VfsResult<TempDir> {
-    let temp_dir = TempDir::new().map_err(|e| vfs::VfsError::Other(e.into()))?;
+    let temp_dir = TempDir::new().map_err(|e| e.into())?;
     let embedded_fs = EmbeddedFS::<Asset>::new();
     let root: VfsPath = embedded_fs.into();
 
     fn copy_recursively(src: &VfsPath, dest: &Path) -> VfsResult<()> {
         if src.is_dir()? {
-            fs::create_dir_all(dest).map_err(|e| vfs::VfsError::Other(e.into()))?;
+            fs::create_dir_all(dest).map_err(|e| e.into())?;
             for entry in src.read_dir()? {
                 copy_recursively(&entry, &dest.join(entry.filename()))?;
             }
@@ -23,7 +23,7 @@ pub fn extract_embedded_git_to_temp_dir() -> VfsResult<TempDir> {
             let mut file = src.open_file()?;
             let mut buffer = Vec::new();
             file.read_to_end(&mut buffer)?;
-            fs::write(dest, &buffer).map_err(|e| vfs::VfsError::Other(e.into()))?;
+            fs::write(dest, &buffer).map_err(|e| e.into())?;
         }
         Ok(())
     }

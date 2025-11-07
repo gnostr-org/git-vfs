@@ -25,6 +25,24 @@ pub enum GitVfsError {
 
 pub type GitVfsResult<T> = Result<T, GitVfsError>;
 
+impl From<git2::Error> for GitVfsError {
+    fn from(_err: git2::Error) -> Self {
+        // For simplicity, mapping all git2 errors to InvalidOperation
+        // In a real application, you might want more granular error handling
+        GitVfsError::InvalidOperation
+    }
+}
+
+impl From<GitVfsError> for vfs::VfsError {
+    fn from(err: GitVfsError) -> Self {
+        match err {
+            GitVfsError::NotFound => vfs::VfsError::FileNotFound,
+            GitVfsError::AlreadyExists => vfs::VfsError::FileExists,
+            GitVfsError::InvalidOperation => vfs::VfsError::Other(Box::new(err)),
+        }
+    }
+}
+
 pub struct GitVfs {
     objects: HashMap<String, Vec<u8>>, // Stores git objects (blobs, trees, commits)
     refs: HashMap<String, String>,     // Stores references (branches, tags)
