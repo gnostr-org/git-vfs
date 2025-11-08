@@ -8,7 +8,7 @@ use std::process::Command;
 // cargo build --features memory_profiling -j8
 
 fn check_sscache() {
-    if Command::new("sscache").arg("--version").output().is_ok() {
+    if Command::new("sccache").arg("--version").output().is_ok() {
         println!("cargo:warning=sscache detected, setting RUSTC_WRAPPER.");
         env::set_var("RUSTC_WRAPPER", "sscache");
         println!("cargo:rerun-if-env-changed=RUSTC_WRAPPER");
@@ -340,6 +340,9 @@ fn get_git_hash() -> String {
 }
 
 fn main() {
+
+    make_empty();
+
     if env::var("RUSTC_WRAPPER").is_ok() {
         println!("cargo:warning=RUSTC_WRAPPER is already set, skipping sccache check.");
     } else {
