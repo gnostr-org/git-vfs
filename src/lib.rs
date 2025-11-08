@@ -7,6 +7,7 @@ use libp2p::{
     request_response::{self},
     swarm::NetworkBehaviour,
 };
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::io;
@@ -46,6 +47,19 @@ impl From<GitVfsError> for VfsError {
             }
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum GitVfsRequest {
+    GetObject { hash: String },
+    GetRef { name: String },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum GitVfsResponse {
+    Object { data: Vec<u8> },
+    Ref { hash: String },
+    NotFound,
 }
 
 pub struct GitVfs {
@@ -255,8 +269,8 @@ struct GitVfsProtocol;
 #[async_trait::async_trait]
 impl libp2p::request_response::Codec for GitVfsProtocol {
     type Protocol = StreamProtocol;
-    type Request = String;
-    type Response = Vec<u8>;
+    type Request = GitVfsRequest;
+    type Response = GitVfsResponse;
 
     async fn read_request<TRs: AsyncReadExt + Unpin + Send>(
         &mut self,
@@ -265,7 +279,7 @@ impl libp2p::request_response::Codec for GitVfsProtocol {
     ) -> io::Result<Self::Request> {
         let mut buf = Vec::new();
         io.read_to_end(&mut buf).await?;
-        String::from_utf8(buf).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+        serde_json::from_slice(&buf).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
     }
 
     async fn read_response<TRs: AsyncReadExt + Unpin + Send>(
@@ -275,7 +289,7 @@ impl libp2p::request_response::Codec for GitVfsProtocol {
     ) -> io::Result<Self::Response> {
         let mut buf = Vec::new();
         io.read_to_end(&mut buf).await?;
-        Ok(buf)
+        serde_json::from_slice(&buf).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
     }
 
     async fn write_request<TWs: AsyncWriteExt + Unpin + Send>(
@@ -284,7 +298,8 @@ impl libp2p::request_response::Codec for GitVfsProtocol {
         io: &mut TWs,
         item: Self::Request,
     ) -> io::Result<()> {
-        io.write_all(item.as_bytes()).await?;
+        let json = serde_json::to_vec(&item).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        io.write_all(&json).await?;
         Ok(())
     }
 
@@ -294,7 +309,8 @@ impl libp2p::request_response::Codec for GitVfsProtocol {
         io: &mut TWs,
         item: Self::Response,
     ) -> io::Result<()> {
-        io.write_all(&item).await?;
+        let json = serde_json::to_vec(&item).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        io.write_all(&json).await?;
         Ok(())
     }
 }
@@ -369,35 +385,12 @@ mod tests {
     use futures::io::Cursor;
     use libp2p::request_response::Codec;
 
-    // Helper function to print the current state of a GitVfs instance
-    fn print_vfs_state(vfs: &GitVfs, node_name: &str) {
-        println!("--- {} VFS State ---", node_name);
-        if let Some(head) = &vfs.head {
-            println!("HEAD: {}", head);
-            match vfs.get_ref(head) {
-                Ok(hash) => println!("  -> Ref '{}' points to hash: {}", head, hash),
-                Err(_) => println!("  -> Ref '{}' not found or invalid.", head),
-            }
-        } else {
-            println!("HEAD: (not set)");
-        }
-
-        println!("Refs:");
-        if vfs.refs.is_empty() {
-            println!("  (no refs)");
-        } else {
-            for (ref_name, hash) in &vfs.refs {
-                println!("  - {}: {}", ref_name, hash);
-            }
-        }
-        println!("---------------------");
-    }
 
     #[tokio::test]
     async fn test_read_write_request() {
         let mut codec = GitVfsProtocol;
         let protocol = StreamProtocol::new("/git-vfs/1.0.0");
-        let request_data = "test_hash_123".to_string();
+        let request_data = GitVfsRequest::GetObject { hash: "test_hash_123".to_string() };
         let mut io_buffer = Cursor::new(Vec::new());
 
         // Write request
@@ -417,7 +410,7 @@ mod tests {
     async fn test_read_write_response() {
         let mut codec = GitVfsProtocol;
         let protocol = StreamProtocol::new("/git-vfs/1.0.0");
-        let response_data = vec![1, 2, 3, 4, 5];
+        let response_data = GitVfsResponse::Object { data: vec![1, 2, 3, 4, 5] };
         let mut io_buffer = Cursor::new(Vec::new());
 
         // Write response
@@ -782,185 +775,83 @@ mod tests {
 
     // --- Test for simulating peer synchronization ---
     #[tokio::test]
-    async fn test_peer_sync() {
+    async fn test_p2p_object_and_ref_exchange() {
         let mut vfs_server = GitVfs::new();
         let mut vfs_client = GitVfs::new();
+        let mut codec = GitVfsProtocol;
+        let protocol = StreamProtocol::new("/git-vfs/1.0.0");
 
-        // --- Server: Populate initial state ---
-        println!("\n--- Server: Initializing ---");
-        let file_content_server = b"Content from server";
-        let blob_hash_server = vfs_server
-            .create_blob(file_content_server)
-            .expect("Server: Failed to create blob");
-        let ref_name_server = "refs/heads/main";
-        vfs_server
-            .create_ref(ref_name_server, &blob_hash_server)
-            .expect("Server: Failed to create ref");
-        vfs_server
-            .set_head(ref_name_server)
-            .expect("Server: Failed to set HEAD");
-        print_vfs_state(&vfs_server, "Server");
+        // 1. Server: Populate with an object and a ref
+        let server_blob_data = b"Hello from server!";
+        let server_blob_hash = vfs_server.create_blob(server_blob_data).unwrap();
+        let server_ref_name = "refs/heads/main";
+        vfs_server.create_ref(server_ref_name, &server_blob_hash).unwrap();
 
-        // --- Client: Fetch changes from server ---
-        println!("\n--- Client: Fetching from Server ---");
+        // 2. Client: Request the object from the server
+        let request_object = GitVfsRequest::GetObject { hash: server_blob_hash.clone() };
+        let mut client_io_buffer = Cursor::new(Vec::new());
+        codec.write_request(&protocol, &mut client_io_buffer, request_object).await.unwrap();
+        client_io_buffer.set_position(0);
 
-        // Fetch object
-        let server_object_data = vfs_server
-            .get_object(&blob_hash_server)
-            .expect("Server: Failed to get object for client");
-        vfs_client
-            .create_object(&blob_hash_server, &server_object_data)
-            .expect("Client: Failed to create object");
-        println!("Client: Created object for hash {}", blob_hash_server);
+        // Simulate server receiving request and sending response
+        let received_request = codec.read_request(&protocol, &mut client_io_buffer).await.unwrap();
+        let server_response = match received_request {
+            GitVfsRequest::GetObject { hash } => {
+                match vfs_server.get_object(&hash) {
+                    Ok(data) => GitVfsResponse::Object { data },
+                    Err(_) => GitVfsResponse::NotFound,
+                }
+            }
+            _ => panic!("Unexpected request type"),
+        };
 
-        // Fetch ref
-        let server_ref_hash = vfs_server
-            .get_ref(ref_name_server)
-            .expect("Server: Failed to get ref for client");
-        vfs_client
-            .create_ref(ref_name_server, &server_ref_hash)
-            .expect("Client: Failed to create ref");
-        println!(
-            "Client: Created ref '{}' pointing to {}",
-            ref_name_server, server_ref_hash
-        );
+        let mut server_io_buffer = Cursor::new(Vec::new());
+        codec.write_response(&protocol, &mut server_io_buffer, server_response).await.unwrap();
+        server_io_buffer.set_position(0);
 
-        // Fetch HEAD
-        let server_head_ref = vfs_server
-            .get_head()
-            .expect("Server: Failed to get HEAD for client");
-        vfs_client
-            .set_head(&server_head_ref)
-            .expect("Client: Failed to set HEAD");
-        println!("Client: Set HEAD to {}", server_head_ref);
+        // Simulate client receiving response and processing
+        let received_response = codec.read_response(&protocol, &mut server_io_buffer).await.unwrap();
+        match received_response {
+            GitVfsResponse::Object { data } => {
+                vfs_client.create_object(&server_blob_hash, &data).unwrap();
+            }
+            _ => panic!("Unexpected response type"),
+        }
 
-        print_vfs_state(&vfs_client, "Client");
+        // 3. Client: Request the ref from the server
+        let request_ref = GitVfsRequest::GetRef { name: server_ref_name.to_string() };
+        client_io_buffer = Cursor::new(Vec::new()); // Reset buffer
+        codec.write_request(&protocol, &mut client_io_buffer, request_ref).await.unwrap();
+        client_io_buffer.set_position(0);
 
-        // --- Server: Populate new changes ---
-        println!("\n--- Server: Making new changes ---");
-        let new_file_content_server = b"New content from server";
-        let new_blob_hash_server = vfs_server
-            .create_blob(new_file_content_server)
-            .expect("Server: Failed to create new blob");
-        println!(
-            "Server: Created new blob with hash {}",
-            new_blob_hash_server
-        );
-        vfs_server
-            .update_ref(ref_name_server, &new_blob_hash_server)
-            .expect("Server: Failed to update ref");
-        println!(
-            "Server: Updated ref '{}' to {}",
-            ref_name_server, new_blob_hash_server
-        );
-        // HEAD remains on main, so it implicitly points to the new commit.
-        print_vfs_state(&vfs_server, "Server");
+        // Simulate server receiving request and sending response
+        let received_request = codec.read_request(&protocol, &mut client_io_buffer).await.unwrap();
+        let server_response = match received_request {
+            GitVfsRequest::GetRef { name } => {
+                match vfs_server.get_ref(&name) {
+                    Ok(hash) => GitVfsResponse::Ref { hash },
+                    Err(_) => GitVfsResponse::NotFound,
+                }
+            }
+            _ => panic!("Unexpected request type"),
+        };
 
-        // --- Client: Fetch updated changes from server ---
-        println!("\n--- Client: Fetching updated changes from Server ---");
+        server_io_buffer = Cursor::new(Vec::new()); // Reset buffer
+        codec.write_response(&protocol, &mut server_io_buffer, server_response).await.unwrap();
+        server_io_buffer.set_position(0);
 
-        // Fetch updated object
-        let server_new_object_data = vfs_server
-            .get_object(&new_blob_hash_server)
-            .expect("Server: Failed to get new object for client");
-        vfs_client
-            .create_object(&new_blob_hash_server, &server_new_object_data)
-            .expect("Client: Failed to create new object");
-        println!(
-            "Client: Created new object for hash {}",
-            new_blob_hash_server
-        );
+        // Simulate client receiving response and processing
+        let received_response = codec.read_response(&protocol, &mut server_io_buffer).await.unwrap();
+        match received_response {
+            GitVfsResponse::Ref { hash } => {
+                vfs_client.create_ref(server_ref_name, &hash).unwrap();
+            }
+            _ => panic!("Unexpected response type"),
+        }
 
-        // Fetch updated ref
-        let server_updated_ref_hash = vfs_server
-            .get_ref(ref_name_server)
-            .expect("Server: Failed to get updated ref for client");
-        vfs_client
-            .update_ref(ref_name_server, &server_updated_ref_hash)
-            .expect("Client: Failed to update ref");
-        println!(
-            "Client: Updated ref '{}' to {}",
-            ref_name_server, server_updated_ref_hash
-        );
-
-        print_vfs_state(&vfs_client, "Client");
-
-        // --- Now, reverse the roles: Client becomes server, Server becomes client ---
-        println!("\n--- Reversing roles: Original Client becomes New Server ---");
-        let mut vfs_server_new = GitVfs::new(); // This will be the new server
-        let _vfs_client_new = GitVfs::new(); // This will be the new client
-
-        // Populate new server state (using original client's state as source)
-        println!("\n--- New Server (Original Client): Initializing ---");
-        let file_content_client_orig = b"Content from original client";
-        let blob_hash_client_orig = vfs_client
-            .create_blob(file_content_client_orig)
-            .expect("Original Client: Failed to create blob");
-        println!(
-            "Original Client: Created blob with hash {}",
-            blob_hash_client_orig
-        );
-        let ref_name_client_orig = "refs/heads/feature";
-        vfs_client
-            .create_ref(ref_name_client_orig, &blob_hash_client_orig)
-            .expect("Original Client: Failed to create ref");
-        println!(
-            "Original Client: Created ref '{}' pointing to {}",
-            ref_name_client_orig, blob_hash_client_orig
-        );
-        vfs_client
-            .set_head(ref_name_client_orig)
-            .expect("Original Client: Failed to set HEAD");
-        println!("Original Client: Set HEAD to {}", ref_name_client_orig);
-        print_vfs_state(&vfs_client, "Original Client");
-
-        // --- New Client: Fetch changes from original client ---
-        println!("\n--- New Client: Fetching from Original Client ---");
-        let client_orig_object_data = vfs_client
-            .get_object(&blob_hash_client_orig)
-            .expect("Original Client: Failed to get object for new client");
-        vfs_server_new
-            .create_object(&blob_hash_client_orig, &client_orig_object_data)
-            .expect("New Server: Failed to create object");
-        println!(
-            "New Server: Created object for hash {}",
-            blob_hash_client_orig
-        );
-
-        let client_orig_ref_hash = vfs_client
-            .get_ref(ref_name_client_orig)
-            .expect("Original Client: Failed to get ref for new client");
-        vfs_server_new
-            .create_ref(ref_name_client_orig, &client_orig_ref_hash)
-            .expect("New Server: Failed to create ref");
-        println!(
-            "New Server: Created ref '{}' pointing to {}",
-            ref_name_client_orig, client_orig_ref_hash
-        );
-
-        let client_orig_head_ref = vfs_client
-            .get_head()
-            .expect("Original Client: Failed to get HEAD for new client");
-        vfs_server_new
-            .set_head(&client_orig_head_ref)
-            .expect("New Server: Failed to set HEAD");
-        println!("New Server: Set HEAD to {}", client_orig_head_ref);
-
-        print_vfs_state(&vfs_server_new, "New Server");
-
-        // --- Verify new server state matches original client state ---
-        assert_eq!(
-            vfs_server_new.get_object(&blob_hash_client_orig).unwrap(),
-            client_orig_object_data
-        );
-        assert_eq!(
-            vfs_server_new.get_ref(ref_name_client_orig).unwrap(),
-            client_orig_ref_hash
-        );
-        assert_eq!(vfs_server_new.get_head().unwrap(), client_orig_head_ref);
-        println!(
-            "\n--- Verification successful: New Server state matches Original Client state ---"
-        );
+        // 4. Verify client state
+        assert_eq!(vfs_client.get_object(&server_blob_hash).unwrap(), server_blob_data);
+        assert_eq!(vfs_client.get_ref(server_ref_name).unwrap(), server_blob_hash);
     }
 }
 
