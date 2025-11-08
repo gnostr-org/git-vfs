@@ -1,18 +1,18 @@
 use futures::{AsyncReadExt, AsyncWriteExt};
 use libp2p::{
-    StreamProtocol,
     identify::Behaviour as IdentifyBehaviour,
-    kad::{Behaviour as Kademlia, Event as KademliaEvent, store::MemoryStore},
+    kad::{store::MemoryStore, Behaviour as Kademlia, Event as KademliaEvent},
     mdns,
     request_response::{self},
     swarm::NetworkBehaviour,
+    StreamProtocol,
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::io;
 use tempfile::tempdir;
-use vfs::{VfsError, error::VfsErrorKind};
+use vfs::{error::VfsErrorKind, VfsError};
 
 pub mod altroot_vfs;
 pub mod embedded_vfs;
@@ -105,17 +105,11 @@ impl GitVfs {
         let custom_time = git2::Time::new(epoch_seconds, offset_minutes);
 
         // Create Author and Committer Signatures with Custom Time
-        let author = git2::Signature::new(
-            "A. U. Thor",
-            "author@example.com",
-            &custom_time,
-        ).map_err(GitVfsError::from)?;
-        
-        let committer = git2::Signature::new(
-            "C. O. Mitter",
-            "committer@example.com",
-            &custom_time,
-        ).map_err(GitVfsError::from)?;
+        let author = git2::Signature::new("A. U. Thor", "author@example.com", &custom_time)
+            .map_err(GitVfsError::from)?;
+
+        let committer = git2::Signature::new("C. O. Mitter", "committer@example.com", &custom_time)
+            .map_err(GitVfsError::from)?;
 
         // Create an empty tree
         let tree_builder = repo.treebuilder(None).map_err(GitVfsError::from)?;
@@ -123,22 +117,26 @@ impl GitVfs {
         let tree = repo.find_tree(tree_oid).map_err(GitVfsError::from)?;
 
         // Create the initial commit
-        let commit_oid = repo.commit(
-            None, // No reference to update (bare repo)
-            &author,
-            &committer,
-            "feat(init): Initial commit",
-            &tree,
-            &[], // No parents for the initial commit
-        ).map_err(GitVfsError::from)?;
+        let commit_oid = repo
+            .commit(
+                None, // No reference to update (bare repo)
+                &author,
+                &committer,
+                "feat(init): Initial commit",
+                &tree,
+                &[], // No parents for the initial commit
+            )
+            .map_err(GitVfsError::from)?;
 
         // Get raw commit and tree object data from git2 and populate self (GitVfs)
         let odb = repo.odb().map_err(GitVfsError::from)?;
         let commit_data = odb.read(commit_oid).map_err(GitVfsError::from)?;
-        self.create_object(&commit_oid.to_string(), commit_data.data()).unwrap();
+        self.create_object(&commit_oid.to_string(), commit_data.data())
+            .unwrap();
 
         let tree_data = odb.read(tree_oid).map_err(GitVfsError::from)?;
-        self.create_object(&tree_oid.to_string(), tree_data.data()).unwrap();
+        self.create_object(&tree_oid.to_string(), tree_data.data())
+            .unwrap();
 
         // Set the main ref and HEAD in self (GitVfs)
         self.create_ref(main_ref, &commit_oid.to_string()).unwrap();
@@ -298,7 +296,8 @@ impl libp2p::request_response::Codec for GitVfsProtocol {
         io: &mut TWs,
         item: Self::Request,
     ) -> io::Result<()> {
-        let json = serde_json::to_vec(&item).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        let json =
+            serde_json::to_vec(&item).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
         io.write_all(&json).await?;
         Ok(())
     }
@@ -309,7 +308,8 @@ impl libp2p::request_response::Codec for GitVfsProtocol {
         io: &mut TWs,
         item: Self::Response,
     ) -> io::Result<()> {
-        let json = serde_json::to_vec(&item).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        let json =
+            serde_json::to_vec(&item).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
         io.write_all(&json).await?;
         Ok(())
     }
@@ -378,19 +378,20 @@ impl From<libp2p::identify::Event> for GitVfsBehaviourEvent {
 
 #[cfg(test)]
 mod tests {
-    use libp2p::PeerId;
     use libp2p::identity::Keypair;
+    use libp2p::PeerId;
 
     use super::*;
     use futures::io::Cursor;
     use libp2p::request_response::Codec;
 
-
     #[tokio::test]
     async fn test_read_write_request() {
         let mut codec = GitVfsProtocol;
         let protocol = StreamProtocol::new("/git-vfs/1.0.0");
-        let request_data = GitVfsRequest::GetObject { hash: "test_hash_123".to_string() };
+        let request_data = GitVfsRequest::GetObject {
+            hash: "test_hash_123".to_string(),
+        };
         let mut io_buffer = Cursor::new(Vec::new());
 
         // Write request
@@ -410,7 +411,9 @@ mod tests {
     async fn test_read_write_response() {
         let mut codec = GitVfsProtocol;
         let protocol = StreamProtocol::new("/git-vfs/1.0.0");
-        let response_data = GitVfsResponse::Object { data: vec![1, 2, 3, 4, 5] };
+        let response_data = GitVfsResponse::Object {
+            data: vec![1, 2, 3, 4, 5],
+        };
         let mut io_buffer = Cursor::new(Vec::new());
 
         // Write response
@@ -785,32 +788,46 @@ mod tests {
         let server_blob_data = b"Hello from server!";
         let server_blob_hash = vfs_server.create_blob(server_blob_data).unwrap();
         let server_ref_name = "refs/heads/main";
-        vfs_server.create_ref(server_ref_name, &server_blob_hash).unwrap();
+        vfs_server
+            .create_ref(server_ref_name, &server_blob_hash)
+            .unwrap();
 
         // 2. Client: Request the object from the server
-        let request_object = GitVfsRequest::GetObject { hash: server_blob_hash.clone() };
+        let request_object = GitVfsRequest::GetObject {
+            hash: server_blob_hash.clone(),
+        };
         let mut client_io_buffer = Cursor::new(Vec::new());
-        codec.write_request(&protocol, &mut client_io_buffer, request_object).await.unwrap();
+        codec
+            .write_request(&protocol, &mut client_io_buffer, request_object)
+            .await
+            .unwrap();
         client_io_buffer.set_position(0);
 
         // Simulate server receiving request and sending response
-        let received_request = codec.read_request(&protocol, &mut client_io_buffer).await.unwrap();
+        let received_request = codec
+            .read_request(&protocol, &mut client_io_buffer)
+            .await
+            .unwrap();
         let server_response = match received_request {
-            GitVfsRequest::GetObject { hash } => {
-                match vfs_server.get_object(&hash) {
-                    Ok(data) => GitVfsResponse::Object { data },
-                    Err(_) => GitVfsResponse::NotFound,
-                }
-            }
+            GitVfsRequest::GetObject { hash } => match vfs_server.get_object(&hash) {
+                Ok(data) => GitVfsResponse::Object { data },
+                Err(_) => GitVfsResponse::NotFound,
+            },
             _ => panic!("Unexpected request type"),
         };
 
         let mut server_io_buffer = Cursor::new(Vec::new());
-        codec.write_response(&protocol, &mut server_io_buffer, server_response).await.unwrap();
+        codec
+            .write_response(&protocol, &mut server_io_buffer, server_response)
+            .await
+            .unwrap();
         server_io_buffer.set_position(0);
 
         // Simulate client receiving response and processing
-        let received_response = codec.read_response(&protocol, &mut server_io_buffer).await.unwrap();
+        let received_response = codec
+            .read_response(&protocol, &mut server_io_buffer)
+            .await
+            .unwrap();
         match received_response {
             GitVfsResponse::Object { data } => {
                 vfs_client.create_object(&server_blob_hash, &data).unwrap();
@@ -819,29 +836,41 @@ mod tests {
         }
 
         // 3. Client: Request the ref from the server
-        let request_ref = GitVfsRequest::GetRef { name: server_ref_name.to_string() };
+        let request_ref = GitVfsRequest::GetRef {
+            name: server_ref_name.to_string(),
+        };
         client_io_buffer = Cursor::new(Vec::new()); // Reset buffer
-        codec.write_request(&protocol, &mut client_io_buffer, request_ref).await.unwrap();
+        codec
+            .write_request(&protocol, &mut client_io_buffer, request_ref)
+            .await
+            .unwrap();
         client_io_buffer.set_position(0);
 
         // Simulate server receiving request and sending response
-        let received_request = codec.read_request(&protocol, &mut client_io_buffer).await.unwrap();
+        let received_request = codec
+            .read_request(&protocol, &mut client_io_buffer)
+            .await
+            .unwrap();
         let server_response = match received_request {
-            GitVfsRequest::GetRef { name } => {
-                match vfs_server.get_ref(&name) {
-                    Ok(hash) => GitVfsResponse::Ref { hash },
-                    Err(_) => GitVfsResponse::NotFound,
-                }
-            }
+            GitVfsRequest::GetRef { name } => match vfs_server.get_ref(&name) {
+                Ok(hash) => GitVfsResponse::Ref { hash },
+                Err(_) => GitVfsResponse::NotFound,
+            },
             _ => panic!("Unexpected request type"),
         };
 
         server_io_buffer = Cursor::new(Vec::new()); // Reset buffer
-        codec.write_response(&protocol, &mut server_io_buffer, server_response).await.unwrap();
+        codec
+            .write_response(&protocol, &mut server_io_buffer, server_response)
+            .await
+            .unwrap();
         server_io_buffer.set_position(0);
 
         // Simulate client receiving response and processing
-        let received_response = codec.read_response(&protocol, &mut server_io_buffer).await.unwrap();
+        let received_response = codec
+            .read_response(&protocol, &mut server_io_buffer)
+            .await
+            .unwrap();
         match received_response {
             GitVfsResponse::Ref { hash } => {
                 vfs_client.create_ref(server_ref_name, &hash).unwrap();
@@ -850,8 +879,14 @@ mod tests {
         }
 
         // 4. Verify client state
-        assert_eq!(vfs_client.get_object(&server_blob_hash).unwrap(), server_blob_data);
-        assert_eq!(vfs_client.get_ref(server_ref_name).unwrap(), server_blob_hash);
+        assert_eq!(
+            vfs_client.get_object(&server_blob_hash).unwrap(),
+            server_blob_data
+        );
+        assert_eq!(
+            vfs_client.get_ref(server_ref_name).unwrap(),
+            server_blob_hash
+        );
     }
 }
 
@@ -870,26 +905,26 @@ fn test_memory_fs_module() -> GitVfsResult<()> {
     crate::memory_vfs::create_and_test_memory_fs().map_err(|_e| GitVfsError::InvalidOperation)
 }
 
-    #[test]
-    fn test_embedded_fs_module() -> GitVfsResult<()> {
-        crate::embedded_vfs::create_and_test_embedded_fs().map_err(|_e| GitVfsError::InvalidOperation)
-    }
+#[test]
+fn test_embedded_fs_module() -> GitVfsResult<()> {
+    crate::embedded_vfs::create_and_test_embedded_fs().map_err(|_e| GitVfsError::InvalidOperation)
+}
 
-    #[test]
-    fn test_init_repo() -> GitVfsResult<()> {
-        let mut vfs = GitVfs::new();
-        let main_ref = "refs/heads/main";
-        vfs.init_repo(main_ref)?;
+#[test]
+fn test_init_repo() -> GitVfsResult<()> {
+    let mut vfs = GitVfs::new();
+    let main_ref = "refs/heads/main";
+    vfs.init_repo(main_ref)?;
 
-        // Verify HEAD is set
-        assert_eq!(vfs.get_head().unwrap(), main_ref);
+    // Verify HEAD is set
+    assert_eq!(vfs.get_head().unwrap(), main_ref);
 
-        // Verify the main ref exists and points to a hash
-        let head_hash = vfs.get_ref(main_ref).unwrap();
-        assert!(!head_hash.is_empty());
+    // Verify the main ref exists and points to a hash
+    let head_hash = vfs.get_ref(main_ref).unwrap();
+    assert!(!head_hash.is_empty());
 
-        // Verify the commit object exists
-        assert!(vfs.get_object(&head_hash).is_ok());
+    // Verify the commit object exists
+    assert!(vfs.get_object(&head_hash).is_ok());
 
-        Ok(())
-    }
+    Ok(())
+}

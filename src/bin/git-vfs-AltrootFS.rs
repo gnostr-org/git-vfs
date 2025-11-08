@@ -1,6 +1,6 @@
 use std::io::{Read, Write};
 use std::path::PathBuf;
-use vfs::{AltrootFS, PhysicalFS, VfsError, VfsPath, error::VfsErrorKind};
+use vfs::{error::VfsErrorKind, AltrootFS, PhysicalFS, VfsError, VfsPath};
 
 type VfsResult<T> = Result<T, VfsError>;
 

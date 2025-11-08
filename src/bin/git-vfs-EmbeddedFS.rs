@@ -1,7 +1,7 @@
-use git_vfs::embedded_vfs;
 use git2::{BranchType, Repository};
-use vfs::VfsResult;
+use git_vfs::embedded_vfs;
 use vfs::error::VfsErrorKind;
+use vfs::VfsResult;
 
 fn main() -> VfsResult<()> {
     println!("--- Git2 with Embedded .git Repository ---");

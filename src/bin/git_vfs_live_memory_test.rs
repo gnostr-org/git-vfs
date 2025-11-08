@@ -1,8 +1,8 @@
 // --- IMPORTS ---
-use git_vfs::GitVfs;
 use git_vfs::memory_vfs;
-use std::sync::Arc;
+use git_vfs::GitVfs;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::sleep;
 

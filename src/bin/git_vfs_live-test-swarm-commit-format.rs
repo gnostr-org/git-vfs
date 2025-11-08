@@ -2,8 +2,8 @@
 use clearscreen::clear;
 use git_vfs::memory_vfs;
 use git_vfs::{Diff, GitVfs};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::sleep;
 

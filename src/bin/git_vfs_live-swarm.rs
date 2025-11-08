@@ -1,10 +1,10 @@
 // --- IMPORTS ---
 use clearscreen::clear;
+use git2::Repository;
 use git_vfs::memory_vfs;
 use git_vfs::{Diff, GitVfs};
-use git2::Repository;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 use tempfile::TempDir;
 use tokio::time::sleep;
