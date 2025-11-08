@@ -341,6 +341,7 @@ fn get_git_hash() -> String {
 
 fn main() {
 
+    println!("cargo:rerun-if-changed=src/empty");
     make_empty();
 
     if env::var("RUSTC_WRAPPER").is_ok() {
@@ -786,9 +787,11 @@ git commit --allow-empty -m "initial commit"
     println!("Build: Adding README.md to the index...");
 
     let output = Command::new("git")
+        .arg("-C")
+        .arg(dir_path)
         .arg("add")
         .arg(".") // Use '.' to add all files in the current directory (src/empty)
-        .current_dir(dir_path) // Executes 'git add .' inside src/empty
+        //.current_dir(dir_path) // Executes 'git add .' inside src/empty
         .output()
         .expect("Failed to execute 'git add'");
 
@@ -800,7 +803,27 @@ git commit --allow-empty -m "initial commit"
             String::from_utf8_lossy(&output.stderr)
         );
     }
+    println!("Build: Adding README.md to the index...");
+
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(dir_path)
+        .arg("commit")
+        .arg("-m") // Use '.' to add all files in the current directory (src/empty)
+        .arg("READM.md") // Use '.' to add all files in the current directory (src/empty)
+        //.current_dir(dir_path) // Executes 'git add .' inside src/empty
+        .output()
+        .expect("Failed to execute 'git add'");
+
+    if output.status.success() {
+        println!("Build: git commit successful.");
+    } else {
+        panic!(
+            "Build: git add failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
 
     // Good practice: Rerun build script if the script itself changes.
-    println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=src/empty");
 }
