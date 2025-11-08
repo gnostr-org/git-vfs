@@ -24,8 +24,8 @@ jobs:
       RUSTFLAGS: "-Awarnings"
     strategy:
       matrix:
-        #os: [macos-latest, ubuntu-latest, windows-latest]
-        os: [windows-latest]
+        os: [macos-latest, ubuntu-latest, windows-latest]
+        #os: [windows-latest]
         rustup: [stable, nightly]
       fail-fast: true
     runs-on: ${{ matrix.os }}
@@ -164,16 +164,16 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
 
       - run: brew tap gnostr-org/homebrew-gnostr-org || true
-        if: runner.os == 'macos'
+        if: runner.os != 'windows'
 
       - run: brew tap nostorg/nostr || true
-        if: runner.os == 'macos'
+        if: runner.os != 'windows'
 
       - run: brew tap randymcmillan/homebrew-randymcmillan || true
-        if: runner.os == 'macos'
+        if: runner.os != 'windows'
 
       - run: brew install gnostr-org/gnostr-org/gnostr && gnostr --help
-        if: runner.os == 'macos'
+        if: runner.os != 'windows'
 
       - run: |
           gnostr -V
@@ -310,8 +310,8 @@ jobs:
             export EVENT=$EVENT && \
             NOTE=$(gnostr convert-key -p note -k $EVENT || true) || true && \
             export NOTE=$NOTE && echo $NOTE && echo $EVENT && \
-            gnostr-query -i $EVENT -r ${{ env.DAMUS }} && \
-            gnostr-query -i $EVENT -r ${{ env.NOS }} && \
+            gnostr query -i $EVENT -r ${{ env.DAMUS }} && \
+            gnostr query -i $EVENT -r ${{ env.NOS }} && \
             echo "http://nostr.band/$NOTE"
 
       - name: Execute script on cancelled
@@ -344,8 +344,8 @@ jobs:
             export EVENT=$EVENT && \
             NOTE=$(gnostr convert-key -p note -k $EVENT || true) || true && \
             export NOTE=$NOTE && echo $NOTE && echo $EVENT && \
-            gnostr-query -i $EVENT -r ${{ env.DAMUS }} && \
-            gnostr-query -i $EVENT -r ${{ env.NOS }} && \
+            gnostr query -i $EVENT -r ${{ env.DAMUS }} && \
+            gnostr query -i $EVENT -r ${{ env.NOS }} && \
             echo "http://nostr.band/$NOTE"
 
       - name: Execute script on success
@@ -379,8 +379,8 @@ jobs:
             echo EVENT=$EVENT && \
             NOTE=$(gnostr convert-key -p note -k $EVENT || true) || true && \
             export NOTE=$NOTE && echo NOTE=$NOTE && echo EVENT=$EVENT && \
-            gnostr-query -i $EVENT -r ${{ env.DAMUS }} && \
-            gnostr-query -i $EVENT -r ${{ env.NOS }} && \
+            gnostr query -i $EVENT -r ${{ env.DAMUS }} && \
+            gnostr query -i $EVENT -r ${{ env.NOS }} && \
             echo "http://nostr.band/$NOTE"
 
       - name: Save rustup
