@@ -261,6 +261,7 @@ jobs:
         #if: ${{ steps.time_check_second.outputs.is_even == 'true' }}
         run: |
           cargo test && echo "✅" || echo "❌"
+          cargo test --features memory_profiling && echo "✅" || echo "❌"
 
       - name: 🌙 UTC second is ODD
         if: ${{ steps.time_check_second.outputs.is_even != 'true' }}
